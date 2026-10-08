@@ -1,0 +1,7 @@
+dist/
+*.log
+node_modules/
+.env*
+mod/.claude-plugin/types/
+.credentials.json
+*.credentials.json
