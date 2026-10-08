@@ -43,3 +43,47 @@ sent to a real account. Never record emails, org IDs or org names here.
 
 Items (b) to (g) require logging in a dedicated test profile; see the GitHub
 issues labelled `phase-0`.
+
+## Update: results with two logged-in profiles (same Pro account)
+
+Profile A is the default `~/.claude`, profile B a separate config dir logged in
+with the same account. Tests ran from an empty temp directory with `--model haiku`.
+
+### (d) `--resume` between profiles: verified
+
+- Without sharing, `claude --resume <id>` in profile B fails with
+  `No conversation found with session ID`.
+- `--resume <absolute path to the .jsonl>` in profile B works without any
+  linking; the conversation context is restored. Plan B (path based) is viable.
+- With B's `projects/` replaced by a directory junction to A's `projects/`,
+  `--resume <id>` in B works, and the turn is appended to the same `.jsonl`.
+- Creating the junction needs no admin rights on Windows
+  (`New-Item -ItemType Junction`).
+- Decision: the linker shares `projects/` via symlink (Unix) / junction
+  (Windows). The path based resume stays as fallback.
+
+### (f) Rate limit data: partly verified, different source than planned
+
+- `claude -p --output-format stream-json --verbose` emits a `rate_limit_event`
+  with `rate_limit_info.unifiedWindows.five_hour` and `.seven_day`, each with
+  `utilization` (fraction 0..1) and `resetsAt` (Unix seconds), plus `status`
+  and `rateLimitType`. This gives usage tracking for headless runs without the
+  statusLine.
+- The statusLine command is not invoked in `-p` mode, so its JSON (and update
+  frequency) can only be captured in the interactive TUI. Still open.
+
+### (b) Headless limit signal
+
+- The same `rate_limit_event` carries `status` (`allowed` observed). The value
+  and result JSON at an actual limit are still unobserved; needs a real limit hit
+  (planned once a second account exists).
+
+### (g) WSL
+
+- WSL is not installed on this machine, so only native Windows was tested.
+
+### Still open (need a TUI or a real limit)
+
+- (a) statusLine precedence of `--settings`, (c) clean termination of an
+  interactive session, (f) statusLine JSON and frequency: need an interactive run.
+- (b) value of `status` at a real limit, (g) WSL behavior.
