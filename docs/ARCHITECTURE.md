@@ -16,12 +16,14 @@ decisions taken while building it. Where the two differ, this file wins.
 | `internal/linker` | shares entries of the default config dir with profiles (symlink, Windows junction) |
 | `internal/launcher` | starts `claude` for a profile, returns its exit code |
 | `internal/selector` | picks the next profile (sequential, most-headroom, round-robin), honors cooldowns |
+| `internal/detector` | recognizes a rate limit in headless output (`stream-json` events, error result, plain text) |
+| `internal/headless` | `claude -p` failover loop: detect limit, cooldown, next profile, resume |
 | `internal/hooks` | statusLine and StopFailure hook handlers, builds the `--settings` JSON |
 | `internal/doctor` | read-only health checks |
 | `fakeclaude` | test double for the `claude` executable (see `docs/DEVELOPMENT.md`) |
 
-Not yet written: `internal/detector`, `internal/ipc`, `internal/platform`, the
-headless and interactive failover loops (phases 3 and 4) and the mod (phase 5).
+Not yet written: `internal/ipc`, `internal/platform`, the
+interactive failover loop (phase 4) and the mod (phase 5).
 
 ## Files and directories
 
@@ -97,3 +99,16 @@ Consumers must check `schema` first.
 - **Secrets.** `claude auth status` output is parsed for `loggedIn`,
   `authMethod`, `subscriptionType`, `configDirectory` only. `doctor` reads
   only key names from `settings.json`. `.credentials.json` is never touched.
+- **Headless failover.** `run` treats the claude arguments as headless when they
+  contain `-p` or `--print` (`switchyard run -- -p "…"`; `-p` before the `--` is
+  `--profile`). The run is automatic whatever `mode` says, since there is no
+  terminal to ask. An attempt counts as limited when claude exits non-zero and
+  `internal/detector` saw a limit signal in stdout or stderr. The profile then
+  gets its usage from the `rate_limit_event` and a cooldown (same rule as the
+  StopFailure hook), the selector picks the next profile and the run is repeated.
+  With `carry_context` the repeat gets `--resume <session_id>` (session ID from the
+  `stream-json` output) or `--continue` if the output has none; the caller's own
+  resume options are replaced. Without it the original arguments run again.
+  Stdin is recorded and replayed so a piped prompt survives the repeat; output of
+  the limited attempt has already been passed on. The signals are provisional
+  until a real limit is observed (spike #6).

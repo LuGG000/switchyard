@@ -6,6 +6,8 @@
 //	FAKE_EXIT       exit code for a normal run (default 0)
 //	FAKE_LOGGED_IN  "true" or "false" for `auth status` (default true)
 //	FAKE_AUTH       authMethod for `auth status` (default claude.ai)
+//	FAKE_LIMIT_DIR  if set and the config dir contains this text, the run hits a
+//	                simulated rate limit: it prints the limit signal and exits 1
 //
 // A normal run prints a JSON report of what the process received, which tests
 // decode to check arguments, config dir and that no credentials leaked.
@@ -15,8 +17,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Report is what a normal run prints on stdout.
@@ -44,6 +48,9 @@ func main() {
 		fmt.Println("fakeclaude: login in", os.Getenv("CLAUDE_CONFIG_DIR"))
 		return
 	}
+	if marker := os.Getenv("FAKE_LIMIT_DIR"); marker != "" && strings.Contains(os.Getenv("CLAUDE_CONFIG_DIR"), marker) {
+		os.Exit(hitLimit(args))
+	}
 	report := Report{Args: args, ConfigDir: os.Getenv("CLAUDE_CONFIG_DIR")}
 	for _, name := range credentialVars {
 		if os.Getenv(name) != "" {
@@ -68,6 +75,21 @@ func authStatus() int {
 		return 1
 	}
 	return 0
+}
+
+// hitLimit prints what a headless run might print at a subscription limit and
+// returns the exit code. The real output is not observed yet (spike #6).
+func hitLimit(args []string) int {
+	const message = "You've hit your session limit · resets 3:45pm"
+	if !slices.Contains(args, "stream-json") {
+		fmt.Println(message)
+		return 1
+	}
+	resets := time.Now().Add(time.Hour).Unix()
+	fmt.Println(`{"type":"system","subtype":"init","session_id":"fake-session"}`)
+	fmt.Printf(`{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","unifiedWindows":{"five_hour":{"utilization":1,"resetsAt":%d}}}}`+"\n", resets)
+	fmt.Printf(`{"type":"result","is_error":true,"session_id":"fake-session","result":%q}`+"\n", message)
+	return 1
 }
 
 func firstN(s []string, n int) []string {

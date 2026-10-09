@@ -37,7 +37,9 @@ func newRunCmd() *cobra.Command {
 		Use:   "run [flags] [-- claude args...]",
 		Short: "Run claude with the active profile",
 		Long: "Run claude with the credentials of a profile. Arguments after -- are passed to claude.\n" +
-			"Without --profile the active profile is used, or the first profile if none is active.",
+			"Without --profile the active profile is used, or the first profile if none is active.\n\n" +
+			"A headless run (switchyard run -- -p \"prompt\") moves on to the next profile when the\n" +
+			"current one hits its limit and continues the conversation there (see carry_context).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := newProfileManager()
 			if err != nil {
@@ -50,6 +52,9 @@ func newRunCmd() *cobra.Command {
 			p, err := resolveProfile(m, store, profileName)
 			if err != nil {
 				return err
+			}
+			if isHeadless(args) {
+				return runHeadless(cmd, m, store, p, args)
 			}
 			return runClaude(cmd, m, store, p, args)
 		},
@@ -80,19 +85,28 @@ func resolveProfile(m *profiles.Manager, store *state.Store, name string) (profi
 	return list[0], nil
 }
 
-// runClaude records p as active, runs claude and turns a non-zero exit into an exitError.
-func runClaude(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p profiles.Profile, args []string) error {
-	err := store.Update(func(st *state.State) error {
+// markUsed records p as the active profile and as just used.
+func markUsed(store *state.Store, p profiles.Profile) error {
+	return store.Update(func(st *state.State) error {
 		st.Active = p.Name
 		entry := st.Profiles[p.Name]
 		entry.LastUsed = time.Now().UTC()
 		st.Profiles[p.Name] = entry
 		return nil
 	})
-	if err != nil {
-		return err
+}
+
+// prepareRun records p as in use and returns the claude arguments for it.
+func prepareRun(store *state.Store, p profiles.Profile, args []string) ([]string, error) {
+	if err := markUsed(store, p); err != nil {
+		return nil, err
 	}
-	claudeArgs, err := withSignalSettings(p, args)
+	return withSignalSettings(p, args)
+}
+
+// runClaude records p as active, runs claude and turns a non-zero exit into an exitError.
+func runClaude(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p profiles.Profile, args []string) error {
+	claudeArgs, err := prepareRun(store, p, args)
 	if err != nil {
 		return err
 	}
