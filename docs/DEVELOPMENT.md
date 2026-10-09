@@ -88,3 +88,7 @@ tsc -p mod                            # needs the generated types, see mod/READM
 3. Tag and push: `git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0`. The `release` workflow builds the archives and creates the GitHub release with notes grouped by Conventional Commit type (`docs:`, `ci:`, `chore:`, `test:` are left out).
 4. `.deb`/`.rpm` packages and macOS archives are built by the same run. `packaging/aur/PKGBUILD` is updated by hand per release (bump `pkgver`, then `sha256sums` from the tag tarball). CI builds a snapshot release and checks the dependency licenses.
 5. Versions follow semver; while the version is below 1.0.0 minor releases may change behavior. Update hints in `switchyard` read the latest non-draft, non-prerelease release.
+
+The mod is versioned on its own in `mod/.claude-plugin/plugin.json`. Bump it in every PR that
+changes the mod: `claude plugin update switchyard-mod@switchyard` compares this version, so
+users do not get new mod code while it stays the same.
