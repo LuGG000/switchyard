@@ -38,11 +38,14 @@ export type Snapshot =
   /** The command reports a schema this mod does not read. */
   | { kind: 'incompatible'; schema: number | null }
 
+/** The color the style page edits. */
+export type ColorSlot = 'background' | 'text' | 'low' | 'medium' | 'high' | 'active' | 'border'
+
 /** The pages of the /switchyard pane. */
 export type Page = 'main' | 'style'
 
 declare module 'claude-code' {
   interface PluginState {
-    'switchyard-mod': { snapshot: Snapshot | null; page: Page }
+    'switchyard-mod': { snapshot: Snapshot | null; page: Page; slot: ColorSlot }
   }
 }

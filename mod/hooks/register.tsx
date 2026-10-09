@@ -25,6 +25,7 @@ const PANE = 'switchyard'
 
 const snapshot = atom({ plugin: 'switchyard-mod', key: 'snapshot' } as const, null)
 const page = atom({ plugin: 'switchyard-mod', key: 'page' } as const, 'main')
+const slotAtom = atom({ plugin: 'switchyard-mod', key: 'slot' } as const, 'background')
 
 type Engine = EngineInterface
 
@@ -137,13 +138,16 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const elements = $.ui.resolve(e)
     const { Box, Button, Text } = elements
-    // Mobile has no text fields or pickers; there the colors are set with the palettes or the command.
-    const fields = 'Input' in elements && 'Select' in elements ? { Input: elements.Input, Select: elements.Select } : null
+    // Mobile has no text fields; there any other color is set with the command.
+    const Input = 'Input' in elements ? elements.Input : null
     const current = await read($, snapshot)
     const shown = await read($, page)
+    const chosenId = await read($, slotAtom)
+    const chosen = COLOR_SLOTS.find(s => s.id === chosenId) ?? COLOR_SLOTS[0]
     const now = await $.clock.now()
     const hint = problem(current)
     const settings = current?.kind === 'ok' ? current.settings : null
+    const chosenValue = settings ? chosen.get(settings.colors) : ''
     const colors = palette(settings?.colors)
     // A background has to fill the whole pane, not just the height of its content.
     const fill = colors.background
@@ -188,12 +192,6 @@ export const register: Register = on => {
           onPress={async () => $.ui.toast(await setPalette($, name))}
         />
       )
-      const colorOptions = (value: string) => [
-        { value: 'theme', label: 'theme' },
-        ...NAMED_COLORS.map(name => ({ value: name, label: name })),
-        // A color typed in, such as a hex value, stays selectable.
-        ...(value !== '' && !(NAMED_COLORS as readonly string[]).includes(value) ? [{ value, label: value }] : []),
-      ]
       const pick = async (key: string, value: string) => $.ui.toast(await setSetting($, key, value === 'theme' ? '' : value))
       const custom = async (text: string) => {
         const parsed = parseCustomColor(text)
@@ -222,33 +220,45 @@ export const register: Register = on => {
             {bar('70-89%  ', 75, '')}
             {bar('from 90% ', 95, '')}
           </Box>
-          {settings && fields && (
+          {settings && (
             <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
               <Text bold color={colors.text}>Colors</Text>
-              {COLOR_SLOTS.map(slot => {
-                const value = slot.get(settings.colors)
-
-                return (
-                  <fields.Select
-                    key={`color-${slot.id}`}
-                    label={`${slot.label.padEnd(14)} `}
-                    options={colorOptions(value)}
-                    value={value === '' ? 'theme' : value}
-                    onSelect={(v: string) => pick(slot.key, v)}
+              {dim('Pick a color to change, then a new value:')}
+              <Box gap={1} flexWrap="wrap">
+                {COLOR_SLOTS.map(slot => (
+                  <Button
+                    key={`slot-${slot.id}`}
+                    label={slot.label}
+                    variant={slot.id === chosen.id ? 'primary' : undefined}
+                    onPress={() => update($, slotAtom, () => slot.id)}
                   />
-                )
-              })}
-              <fields.Input
-                key="custom-color"
-                label="Custom "
-                placeholder="slot color, e.g. background #1e1e1e"
-                submitLabel="apply"
-                onSubmit={custom}
-              />
-              {dim(`slots: ${COLOR_SLOTS.map(s => s.id).join(', ')}; color: a name, hex or theme`)}
+                ))}
+              </Box>
+              {dim(`${chosen.label}: ${chosenValue === '' ? 'theme' : chosenValue}`)}
+              <Box gap={1} flexWrap="wrap">
+                {['theme', ...NAMED_COLORS].map(name => {
+                  const isCurrent = name === 'theme' ? chosenValue === '' : chosenValue === name
+
+                  return (
+                    <Button key={`pick-${name}`} onPress={() => pick(chosen.key, name)}>
+                      {isCurrent ? '✓ ' : ''}
+                      <Text color={name === 'theme' ? undefined : name}>■</Text> {name}
+                    </Button>
+                  )
+                })}
+              </Box>
+              {Input && (
+                <Input
+                  key="custom-color"
+                  label="Any other "
+                  placeholder="slot color, e.g. background #1e1e1e"
+                  submitLabel="apply"
+                  onSubmit={custom}
+                />
+              )}
+              {dim(Input ? `slots: ${COLOR_SLOTS.map(s => s.id).join(', ')}; color: a name, hex or theme` : "Any other color: switchyard config set color_background '#1e1e1e'")}
             </Box>
           )}
-          {settings && !fields && dim("Set a color with: switchyard config set color_background '#1e1e1e'")}
         </Box>
       )
     }

@@ -212,7 +212,7 @@ test('the style page shows the palettes, a preview and the colors in use, and le
   for (const key of ['colors-default', 'colors-dark', 'colors-light', 'back']) {
     expect(await ui.find({ key })).toBeDefined()
   }
-  expect(JSON.stringify(await ui.drawn())).toContain('"value":"#1e1e1e"')
+  expect(JSON.stringify(await ui.drawn())).toContain('background: #1e1e1e')
   expect(await ui.find({ type: 'Text', text: /from 90%/ })).toBeDefined()
   expect(await ui.find({ key: 'mode-auto' })).toBeUndefined()
 
@@ -222,19 +222,20 @@ test('the style page shows the palettes, a preview and the colors in use, and le
   await ui.unmount()
 })
 
-test('a color can be picked, typed in, or cleared on the style page', async ($, on) => {
+test('a color can be chosen by button, typed in, or cleared on the style page', async ($, on) => {
   const custom = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, colors: { ...COLORS, text: '#abcdef' } })
   const calls = world(on, argv => (argv[1] === 'config' && argv[2] === 'set' ? { exitCode: 0, stdout: '', stderr: '' } : argv[1] === 'config' ? { exitCode: 0, stdout: custom, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
   await runCommand($, 'switchyard', 'style')
 
   const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
-  expect(await ui.find({ key: 'color-background' })).toBeDefined()
+  expect(await ui.find({ key: 'slot-background' })).toBeDefined()
   expect(await ui.find({ key: 'custom-color' })).toBeDefined()
 
-  await ui.select({ key: 'color-background', value: 'cyan' })
+  await ui.press({ key: 'pick-cyan' })
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_background', 'cyan'])
 
-  await ui.select({ key: 'color-text', value: 'theme' })
+  await ui.press({ key: 'slot-text' })
+  await ui.press({ key: 'pick-theme' })
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_text', ''])
 
   await ui.input({ key: 'custom-color', text: 'active #00ff88' })
@@ -262,4 +263,17 @@ test('every page has a Close button that closes the pane', async ($, on) => {
     await ui.unmount()
   }
   expect(closed).toEqual(['switchyard', 'switchyard'])
+})
+
+test('the style page marks the current value of the chosen color and follows the choice', async ($, on) => {
+  const colored = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, colors: { ...COLORS, text: 'red' } })
+  world(on, argv => (argv[1] === 'config' ? { exitCode: 0, stdout: colored, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
+  await runCommand($, 'switchyard', 'style')
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  expect((await ui.find({ key: 'pick-theme' }))?.text).toMatch(/✓/)
+  await ui.press({ key: 'slot-text' })
+  expect((await ui.find({ key: 'pick-red' }))?.text).toMatch(/✓/)
+  expect((await ui.find({ key: 'pick-theme' }))?.text).not.toMatch(/✓/)
+  await ui.unmount()
 })
