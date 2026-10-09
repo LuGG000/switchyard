@@ -10,6 +10,7 @@
 //	                simulated rate limit. Headless (-p): prints the limit signal and
 //	                exits 1. Interactive: calls the StopFailure hook from --settings
 //	                and waits to be ended by the launcher
+//	FAKE_FIVE_HOUR  utilization (0 to 1) a stream-json run reports for the five-hour window
 //	FAKE_THRESHOLD_DIR  like FAKE_LIMIT_DIR, but an interactive run reports 96%
 //	                of the five-hour window to the statusLine command and waits
 //
@@ -60,6 +61,10 @@ func main() {
 		os.Exit(interactiveLimit(args))
 	case matchesDir("FAKE_THRESHOLD_DIR") && !headless:
 		os.Exit(interactiveThreshold(args))
+	}
+	if used := os.Getenv("FAKE_FIVE_HOUR"); used != "" && slices.Contains(args, "stream-json") {
+		fmt.Printf(`{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","unifiedWindows":{"five_hour":{"utilization":%s,"resetsAt":%d}}}}`+"\n",
+			used, time.Now().Add(time.Hour).Unix())
 	}
 	report := Report{Args: args, ConfigDir: os.Getenv("CLAUDE_CONFIG_DIR")}
 	for _, name := range credentialVars {

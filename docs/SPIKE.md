@@ -146,3 +146,12 @@ TUI was running; no real limit was hit.
   `resetsAt`, `rateLimitType`, `overageStatus`, `overageDisabledReason`,
   `isUsingOverage` and `unifiedWindows` (`five_hour`, `seven_day`), which is the
   shape `internal/detector` parses. No false positive on a normal run.
+
+### settings.json link on Windows (#38)
+
+- Right after `add`, `doctor` was clean. After the first real start of claude in
+  a profile, `settings.json` was a regular file in the profile: claude had
+  rewritten it (same content, different key order) and replaced the hard link.
+  The source file was untouched.
+- After `repair` (identical copy relinked) the next claude start did not break
+  the link again, since the key order already matched what claude writes.

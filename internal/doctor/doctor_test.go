@@ -152,3 +152,17 @@ func TestNoProfilesIsAWarning(t *testing.T) {
 		t.Errorf("unexpected findings: %+v", findings)
 	}
 }
+
+func TestIdenticalCopyOfSharedFileIsAWarning(t *testing.T) {
+	f := newFixture(t, true, profiles.SubscriptionAuth)
+	f.doctor.Config.Link = []string{"projects", "settings.json"}
+	if err := os.WriteFile(filepath.Join(f.source, "settings.json"), []byte(`{"a":1,"b":2}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(f.profile.Dir, "settings.json"), []byte(`{"b":2,"a":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !has(f.run(t), Warn, "a", "settings.json: identical copy") {
+		t.Error("identical copy not reported as a warning")
+	}
+}

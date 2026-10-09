@@ -104,8 +104,9 @@ func (m *Manager) List() ([]Profile, error) {
 	}
 	var out []Profile
 	for _, e := range entries {
-		if e.IsDir() && ValidName(e.Name()) {
-			out = append(out, m.profile(e.Name()))
+		// Get follows links, so a profile directory may be a symlink or junction.
+		if p, err := m.Get(e.Name()); err == nil {
+			out = append(out, p)
 		}
 	}
 	return out, nil

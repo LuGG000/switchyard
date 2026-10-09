@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -158,5 +159,23 @@ func TestLoginUsesProfileDirAndScrubbedEnv(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), p.Dir) {
 		t.Errorf("login did not run in the profile dir: %q", out.String())
+	}
+}
+
+func TestListFollowsLinkedProfileDirectories(t *testing.T) {
+	m := &Manager{Root: t.TempDir()}
+	target := t.TempDir()
+	if err := os.Symlink(target, filepath.Join(m.Root, "linked")); err != nil {
+		t.Skipf("cannot create a symlink: %v", err)
+	}
+	if _, err := m.Create("plain"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Name != "linked" || got[1].Name != "plain" {
+		t.Errorf("List = %+v, want linked and plain", got)
 	}
 }

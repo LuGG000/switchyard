@@ -154,6 +154,8 @@ func (d *Doctor) checkLinks(p profiles.Profile) []Finding {
 		case linker.Unchanged, linker.SourceMissing:
 		case linker.Missing, linker.Broken:
 			findings = append(findings, Finding{Error, p.Name, fmt.Sprintf("%s: link %s; run: switchyard repair %s", r.Name, r.Outcome, p.Name)})
+		case linker.Copy:
+			findings = append(findings, Finding{Warn, p.Name, fmt.Sprintf("%s: %s; run: switchyard repair %s", r.Name, r.Detail, p.Name)})
 		default:
 			findings = append(findings, Finding{Error, p.Name, fmt.Sprintf("%s: %s", r.Name, r.Detail)})
 		}

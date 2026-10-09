@@ -172,3 +172,46 @@ func TestCheckReportsWithoutChanging(t *testing.T) {
 		t.Error("Check created a link")
 	}
 }
+
+func TestLinkReplacesIdenticalCopyWithLink(t *testing.T) {
+	tests := []struct {
+		name, entry, shared, copied string
+	}{
+		{"same bytes", "CLAUDE.md", "rules", "rules"},
+		{"json with another key order", "settings.json", `{"a":1,"b":{"c":2,"d":[1,2]}}`, `{"b":{"d":[1,2],"c":2},"a":1}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source, profile := setup(t)
+			write(t, filepath.Join(source, tt.entry), tt.shared)
+			write(t, filepath.Join(profile, tt.entry), tt.copied)
+
+			if got := Check(source, profile, []string{tt.entry}); outcomeOf(got, tt.entry) != Copy {
+				t.Errorf("Check outcome %q, want %q", outcomeOf(got, tt.entry), Copy)
+			}
+			results, err := Link(source, profile, []string{tt.entry})
+			if err != nil || outcomeOf(results, tt.entry) != Relinked {
+				t.Fatalf("Link = %v, %v; want %q", results, err, Relinked)
+			}
+			// Shared again: a write through the profile reaches the source.
+			write(t, filepath.Join(profile, tt.entry), "changed")
+			if got := read(t, filepath.Join(source, tt.entry)); got != "changed" {
+				t.Errorf("entry is not shared after relinking: %q", got)
+			}
+		})
+	}
+}
+
+func TestLinkKeepsCopyWithDifferentContent(t *testing.T) {
+	source, profile := setup(t)
+	write(t, filepath.Join(source, "settings.json"), `{"a":1}`)
+	write(t, filepath.Join(profile, "settings.json"), `{"a":2}`)
+
+	results, err := Link(source, profile, []string{"settings.json"})
+	if !errors.Is(err, ErrConflict) || outcomeOf(results, "settings.json") != Conflict {
+		t.Fatalf("Link = %v, %v; want a conflict", results, err)
+	}
+	if got := read(t, filepath.Join(profile, "settings.json")); got != `{"a":2}` {
+		t.Errorf("profile file changed: %q", got)
+	}
+}

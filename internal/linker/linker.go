@@ -2,15 +2,20 @@
 // settings, skills, ...) with profile directories through links.
 //
 // A link is only ever created where nothing exists or where an empty directory
-// or a dangling link sits. Real content is never overwritten or deleted.
+// or a dangling link sits, or where a regular file holds the same content as
+// the shared one (a tool replaced the link by a copy). Different content is
+// never overwritten or deleted.
 package linker
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -24,9 +29,10 @@ const (
 	Relinked      Outcome = "relinked"
 	SourceMissing Outcome = "source missing"
 	Conflict      Outcome = "conflict"
-	// Missing and Broken are only reported by Check.
+	// Missing, Broken and Copy are only reported by Check.
 	Missing Outcome = "missing"
 	Broken  Outcome = "broken"
+	Copy    Outcome = "copy"
 )
 
 // ErrConflict is returned when an entry exists in a profile and is not the shared one.
@@ -86,6 +92,11 @@ func linkOne(source, profileDir, name string) (Result, error) {
 			if err := os.Remove(dst); err != nil {
 				return Result{Name: name}, fmt.Errorf("remove empty directory: %w", err)
 			}
+		case identicalCopy(src, dst, srcInfo, dstLinfo):
+			if err := os.Remove(dst); err != nil {
+				return Result{Name: name}, fmt.Errorf("remove identical copy: %w", err)
+			}
+			outcome = Relinked
 		default:
 			return Result{Name: name, Outcome: Conflict, Detail: "exists and is not the shared entry"}, ErrConflict
 		}
@@ -117,6 +128,32 @@ func isDangling(dst string, linfo fs.FileInfo) bool {
 	}
 	_, err := os.Stat(dst)
 	return errors.Is(err, fs.ErrNotExist)
+}
+
+// maxCompare bounds the size of files compared for identical content.
+const maxCompare = 1 << 20
+
+// identicalCopy reports whether dst is a regular file with the content of the
+// source file. JSON files compare equal regardless of key order, since claude
+// rewrites settings.json that way.
+func identicalCopy(src, dst string, srcInfo, dstLinfo fs.FileInfo) bool {
+	if srcInfo.IsDir() || !dstLinfo.Mode().IsRegular() || srcInfo.Size() > maxCompare || dstLinfo.Size() > maxCompare {
+		return false
+	}
+	want, err := os.ReadFile(src)
+	if err != nil {
+		return false
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(want, got) || (filepath.Ext(src) == ".json" && sameJSON(want, got))
+}
+
+func sameJSON(a, b []byte) bool {
+	var x, y any
+	return json.Unmarshal(a, &x) == nil && json.Unmarshal(b, &y) == nil && reflect.DeepEqual(x, y)
 }
 
 func isEmptyDir(dst string, linfo fs.FileInfo) bool {
@@ -153,6 +190,8 @@ func checkOne(source, profileDir, name string) Result {
 		return Result{Name: name, Outcome: Unchanged}
 	case isDangling(dst, linfo):
 		return Result{Name: name, Outcome: Broken, Detail: "link target is gone"}
+	case identicalCopy(filepath.Join(source, name), dst, srcInfo, linfo):
+		return Result{Name: name, Outcome: Copy, Detail: "identical copy, not shared any more"}
 	}
 	return Result{Name: name, Outcome: Conflict, Detail: "exists and is not the shared entry"}
 }

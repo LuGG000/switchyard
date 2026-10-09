@@ -70,6 +70,21 @@ func linkProfiles(cmd *cobra.Command, list []profiles.Profile) error {
 	return nil
 }
 
+// relinkShared restores the shared entries of p before claude starts, for
+// example a settings.json that claude replaced by an identical copy. It is best
+// effort: whatever it cannot fix is reported by doctor and repair.
+func relinkShared(p profiles.Profile) {
+	cfg, err := loadConfig()
+	if err != nil {
+		return
+	}
+	source, err := cfg.ResolveSourceDir()
+	if err != nil {
+		return
+	}
+	_, _ = linker.Link(source, p.Dir, cfg.Link)
+}
+
 func describeResult(r linker.Result) string {
 	if r.Detail != "" {
 		return fmt.Sprintf("%s (%s)", r.Outcome, r.Detail)

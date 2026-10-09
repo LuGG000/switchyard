@@ -45,6 +45,9 @@ type Runner struct {
 // Output of an attempt that hit the limit has already been passed on when the
 // next attempt starts, so a consumer of stream-json sees both attempts.
 func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string) (int, error) {
+	if len(r.Profiles) == 0 {
+		return 0, selector.ErrNoCandidates
+	}
 	stdin := newReplayableStdin(r.Launcher.Stdin)
 	current := start
 	attemptArgs := args
@@ -60,17 +63,23 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 		l.Stdout = io.MultiWriter(r.Launcher.Stdout, &det)
 		l.Stderr = io.MultiWriter(r.Launcher.Stderr, &det)
 		code, err := l.Run(ctx, current, claudeArgs)
-		if err != nil || code == 0 {
+		if err != nil {
 			return code, err
 		}
 		result := det.Result()
+		if err := r.recordUsage(current, result); err != nil {
+			return code, err
+		}
+		if code == 0 {
+			return 0, nil
+		}
 		if !result.Limited {
 			return code, nil
 		}
 		if result.SessionID != "" {
 			sessionID = result.SessionID
 		}
-		next, err := r.markLimited(current, result)
+		next, err := r.markLimited(current)
 		if err != nil {
 			return code, err
 		}
@@ -84,29 +93,32 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 	return 0, fmt.Errorf("giving up after %d profiles hit their limit", len(r.Profiles))
 }
 
-// markLimited records the usage seen in the output, puts current into cooldown
-// and returns the profile to continue with.
-func (r *Runner) markLimited(current profiles.Profile, result detector.Result) (profiles.Profile, error) {
-	now := r.Now()
-	err := r.Store.Update(func(st *state.State) error {
-		p := st.Profiles[current.Name]
+// recordUsage stores the rate limit windows the output reported for p.
+func (r *Runner) recordUsage(p profiles.Profile, result detector.Result) error {
+	if result.FiveHour == nil && result.SevenDay == nil {
+		return nil
+	}
+	now := r.Now().UTC()
+	return r.Store.Update(func(st *state.State) error {
+		entry := st.Profiles[p.Name]
 		if w := result.FiveHour; w != nil {
-			p.FiveHour = &state.Usage{UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt, UpdatedAt: now.UTC()}
+			entry.FiveHour = &state.Usage{UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt, UpdatedAt: now}
 		}
 		if w := result.SevenDay; w != nil {
-			p.SevenDay = &state.Usage{UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt, UpdatedAt: now.UTC()}
+			entry.SevenDay = &state.Usage{UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt, UpdatedAt: now}
 		}
-		st.Profiles[current.Name] = p
+		st.Profiles[p.Name] = entry
 		return nil
 	})
-	if err != nil {
-		return profiles.Profile{}, err
-	}
+}
+
+// markLimited puts current into cooldown and returns the profile to continue with.
+func (r *Runner) markLimited(current profiles.Profile) (profiles.Profile, error) {
 	h := hooks.Handler{Store: r.Store, Profile: current.Name, Now: r.Now}
 	if err := h.MarkLimited(); err != nil {
 		return profiles.Profile{}, err
 	}
-	return selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, now)
+	return selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, r.Now())
 }
 
 // replayableStdin hands every attempt the same input. A terminal is passed

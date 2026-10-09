@@ -100,6 +100,7 @@ func prepareRun(store *state.Store, p profiles.Profile, args []string) ([]string
 	if err := markUsed(store, p); err != nil {
 		return nil, err
 	}
+	relinkShared(p)
 	return withSignalSettings(p, args)
 }
 

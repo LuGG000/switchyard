@@ -90,11 +90,15 @@ Consumers must check `schema` first.
 - **Cooldown (provisional).** The StopFailure hook sets `cooldown_until` to the
   reset of a window that is used up, else to the nearest known future reset,
   else now plus 30 minutes. Revisit once a real limit is observed (spike #6).
-- **Linker.** It never overwrites real content. It replaces only empty
-  directories and dangling links; anything else is a conflict that `repair` and
-  `doctor` report. Windows uses directory junctions (no admin rights) and, for
-  files, a symlink or hard link. Never remove a junction with a recursive
-  delete.
+- **Linker.** It never overwrites different content. It replaces only empty
+  directories, dangling links and regular files that hold the same content as the
+  shared entry (JSON compared regardless of key order); anything else is a
+  conflict that `repair` and `doctor` report. The identical-copy case exists
+  because claude rewrites `settings.json` by replacing the file, which breaks a
+  Windows hard link (#38). `run` and `switch` relink best-effort before every
+  start, `doctor` warns about a copy. Windows uses directory junctions (no admin
+  rights) and, for files, a symlink or hard link. Never remove a junction with a
+  recursive delete.
 - **Environment.** Child processes lose `ANTHROPIC_API_KEY`,
   `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, Bedrock/Vertex/Foundry
   variables, and get `CLAUDE_CONFIG_DIR` set to the profile.
@@ -105,9 +109,10 @@ Consumers must check `schema` first.
   contain `-p` or `--print` (`switchyard run -- -p "…"`; `-p` before the `--` is
   `--profile`). The run is automatic whatever `mode` says, since there is no
   terminal to ask. An attempt counts as limited when claude exits non-zero and
-  `internal/detector` saw a limit signal in stdout or stderr. The profile then
-  gets its usage from the `rate_limit_event` and a cooldown (same rule as the
-  StopFailure hook), the selector picks the next profile and the run is repeated.
+  `internal/detector` saw a limit signal in stdout or stderr. After every attempt
+  the windows of the `rate_limit_event` are stored as the profile's usage. A
+  limited profile gets a cooldown (same rule as the StopFailure hook), the
+  selector picks the next profile and the run is repeated.
   With `carry_context` the repeat gets `--resume <session_id>` (session ID from the
   `stream-json` output) or `--continue` if the output has none; the caller's own
   resume options are replaced. Without it the original arguments run again.

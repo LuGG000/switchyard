@@ -224,3 +224,29 @@ func TestReplayableStdin(t *testing.T) {
 		t.Error("nil stdin must stay nil")
 	}
 }
+
+func TestUsageIsRecordedOnSuccess(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.Launcher.Environ = append(f.runner.Launcher.Environ, "FAKE_FIVE_HOUR=0.42")
+	args := []string{"-p", "--output-format", "stream-json", "hello"}
+	if code, err := f.runner.Run(context.Background(), f.runner.Profiles[1], args); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	st, _ := f.store.Read()
+	usage := st.Profiles["b"].FiveHour
+	if usage == nil || usage.UsedPercent != 42 {
+		t.Errorf("five_hour = %+v, want 42%%", usage)
+	}
+	if !st.Profiles["b"].CooldownUntil.IsZero() {
+		t.Error("a successful run must not cause a cooldown")
+	}
+}
+
+func TestRunWithoutProfiles(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.Profiles = nil
+	_, err := f.runner.Run(context.Background(), profiles.Profile{Name: "a"}, []string{"-p", "hello"})
+	if !errors.Is(err, selector.ErrNoCandidates) {
+		t.Errorf("err = %v, want ErrNoCandidates", err)
+	}
+}
