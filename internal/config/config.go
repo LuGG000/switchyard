@@ -43,6 +43,9 @@ type Config struct {
 	ContinuePrompt string `toml:"continue_prompt"`
 	// ProactiveThreshold switches at this five-hour usage percentage. Zero disables it.
 	ProactiveThreshold int `toml:"proactive_threshold"`
+	// SourceDir is the claude config dir whose entries are shared with profiles.
+	// Empty means ~/.claude.
+	SourceDir string `toml:"source_dir"`
 	// Link lists the entries of a profile directory shared with the default one.
 	Link []string `toml:"link"`
 }
@@ -92,6 +95,18 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("%s: %w", path, err)
 	}
 	return cfg, nil
+}
+
+// ResolveSourceDir returns SourceDir, falling back to ~/.claude.
+func (c Config) ResolveSourceDir() (string, error) {
+	if c.SourceDir != "" {
+		return c.SourceDir, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("locate home dir: %w", err)
+	}
+	return filepath.Join(home, ".claude"), nil
 }
 
 // Path returns the location of config.toml.

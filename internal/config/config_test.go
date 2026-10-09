@@ -82,3 +82,19 @@ func TestPathUsesConfigDirOverride(t *testing.T) {
 		t.Errorf("unexpected path %q", got)
 	}
 }
+
+func TestResolveSourceDir(t *testing.T) {
+	cfg := Default()
+	cfg.SourceDir = "/custom"
+	if got, _ := cfg.ResolveSourceDir(); got != "/custom" {
+		t.Errorf("explicit: got %q", got)
+	}
+	cfg.SourceDir = ""
+	got, err := cfg.ResolveSourceDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(got) != ".claude" {
+		t.Errorf("default: got %q", got)
+	}
+}

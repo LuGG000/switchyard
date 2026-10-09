@@ -58,6 +58,9 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 			printf(cmd, "Created profile %s\n", p.Name)
+			if err := linkProfiles(cmd, []profiles.Profile{p}); err != nil {
+				return err
+			}
 			return loginAndValidate(cmd, m, p)
 		},
 	}
