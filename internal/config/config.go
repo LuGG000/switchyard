@@ -47,6 +47,8 @@ type Config struct {
 	ContinuePrompt string `toml:"continue_prompt"`
 	// ProactiveThreshold switches at this five-hour usage percentage. Zero disables it.
 	ProactiveThreshold int `toml:"proactive_threshold"`
+	// UpdateCheck lets status, list and doctor mention a newer release once a day.
+	UpdateCheck bool `toml:"update_check"`
 	// The color settings style the mod's accounts pane; empty means the Claude theme's color.
 	ColorBackground   string `toml:"color_background"`
 	ColorText         string `toml:"color_text"`
@@ -67,6 +69,7 @@ func Default() Config {
 	return Config{
 		Mode:         ModeAsk,
 		CarryContext: true,
+		UpdateCheck:  true,
 		Strategy:     StrategySequential,
 		Link:         []string{"projects", "settings.json", "CLAUDE.md", "skills", "agents", "commands", "plugins"},
 	}
@@ -195,10 +198,11 @@ const (
 	KeyCarryContext       = "carry_context"
 	KeyStrategy           = "strategy"
 	KeyProactiveThreshold = "proactive_threshold"
+	KeyUpdateCheck        = "update_check"
 )
 
 // SettableKeys lists the settings Set can change, in display order.
-var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold}, ColorKeys...)
+var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold, KeyUpdateCheck}, ColorKeys...)
 
 // Set changes one setting in the config file at path and leaves the rest of the
 // file, comments included, as it is. The value is checked before anything is
@@ -245,12 +249,16 @@ func apply(cfg *Config, key, value string) (string, error) {
 	case KeyStrategy:
 		cfg.Strategy = value
 		return strconv.Quote(value), nil
-	case KeyCarryContext:
+	case KeyCarryContext, KeyUpdateCheck:
 		b, err := strconv.ParseBool(value)
 		if err != nil {
 			return "", fmt.Errorf("%s: %q is not true or false", key, value)
 		}
-		cfg.CarryContext = b
+		if key == KeyUpdateCheck {
+			cfg.UpdateCheck = b
+		} else {
+			cfg.CarryContext = b
+		}
 		return strconv.FormatBool(b), nil
 	case KeyProactiveThreshold:
 		n, err := strconv.Atoi(value)

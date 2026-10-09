@@ -41,6 +41,7 @@ the hooks reach the launcher through the state file (see Decisions).
 | `carry_context` | `true` | continue the current conversation when switching |
 | `strategy` | `sequential` | `sequential`, `most-headroom`, `round-robin` |
 | `continue_prompt` | empty | sent as the first message of a resumed session |
+| `update_check` | `true` | `status`, `list` and `doctor` mention a newer release (at most once a day, only on a terminal); `SWITCHYARD_NO_UPDATE_CHECK=1` also turns it off |
 | `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off |
 | `color_background`, `color_text`, `color_low`, `color_medium`, `color_high`, `color_border_active`, `color_border` | empty = default (the active border is green, the rest follows the theme) | colors of the mod pane: a theme key (`success`, `subtle`, ...), a color name or hex; `config colors` with default, dark or light sets all |
 | `source_dir` | empty = `~/.claude` | claude config dir whose entries are shared |
@@ -169,3 +170,18 @@ Consumers must check `schema` first.
   fields may be added. The interactive launcher reads the config again at every
   limit, so a change applies to a running session; the hooks read it on every
   call. The status line ends with `on limit: auto` or `on limit: ask`.
+
+### Releases and update hints
+
+- A release is a tag `vX.Y.Z` on `main`. `.github/workflows/release.yml` runs GoReleaser:
+  archives for Linux and Windows (amd64, arm64), `checksums.txt` and release notes grouped
+  from the Conventional Commit titles. The version is injected with `-X main.version`; a
+  binary built by `go install` reports its module version instead.
+- Users learn about a release in three ways: GitHub's "Watch > Custom > Releases", the hint
+  `internal/update` prints after `status`, `list` and `doctor` (the latest release is read
+  from the public GitHub API, cached in `update-check.json` in the data dir for 24 hours, a
+  failed lookup is cached too, and the lookup times out after 2 seconds), and
+  `switchyard update`, which checks right away. Nothing is downloaded or replaced:
+  switchyard never rewrites its own binary. The hint is limited to a terminal on stderr, so
+  scripts, `--json` output, hooks and the mod are not affected, and it can be turned off
+  with `update_check = false`.

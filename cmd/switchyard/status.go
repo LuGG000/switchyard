@@ -79,7 +79,7 @@ func buildStatus(m *profiles.Manager, store *state.Store) (statusReport, error) 
 	if err != nil {
 		return statusReport{}, err
 	}
-	report := statusReport{Schema: statusSchema, Version: version, Active: st.Active, Profiles: []profileStatus{}}
+	report := statusReport{Schema: statusSchema, Version: currentVersion(), Active: st.Active, Profiles: []profileStatus{}}
 	for _, p := range list {
 		entry := st.Profiles[p.Name]
 		report.Profiles = append(report.Profiles, profileStatus{

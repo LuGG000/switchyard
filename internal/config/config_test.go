@@ -267,3 +267,18 @@ func TestSetPresetReplacesAllColors(t *testing.T) {
 		t.Error("an unknown palette was accepted")
 	}
 }
+
+func TestUpdateCheckIsOnByDefaultAndCanBeTurnedOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	cfg, err := Load(path)
+	if err != nil || !cfg.UpdateCheck {
+		t.Fatalf("default: %+v, %v", cfg, err)
+	}
+	if err := Set(path, KeyUpdateCheck, "false"); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = Load(path)
+	if err != nil || cfg.UpdateCheck || !cfg.CarryContext {
+		t.Fatalf("after set: %+v, %v (carry_context must stay untouched)", cfg, err)
+	}
+}

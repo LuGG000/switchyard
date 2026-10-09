@@ -49,6 +49,15 @@ jobs:
           go-version: stable
       - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
+  release-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go run github.com/goreleaser/goreleaser/v2@v2.12.0 check
+
   secrets:
     runs-on: ubuntu-latest
     steps:
