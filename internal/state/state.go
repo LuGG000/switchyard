@@ -50,14 +50,20 @@ const (
 	ReasonRateLimit = "rate_limit"
 	// ReasonThreshold means the profile reached the configured usage threshold.
 	ReasonThreshold = "threshold"
+	// ReasonManual means the user asked to continue in another profile.
+	ReasonManual = "manual"
 )
 
 // SwitchRequest asks the launcher that runs a profile to move to another one.
 // A hook process writes it; the launcher polls for it and clears it.
 type SwitchRequest struct {
-	Profile     string    `json:"profile"`
-	Reason      string    `json:"reason"`
-	SessionID   string    `json:"session_id,omitempty"`
+	Profile   string `json:"profile"`
+	Reason    string `json:"reason"`
+	SessionID string `json:"session_id,omitempty"`
+	// Target is the profile to continue in; only a manual request names one.
+	Target string `json:"target,omitempty"`
+	// Carry says whether to resume the conversation; nil leaves it to carry_context.
+	Carry       *bool     `json:"carry,omitempty"`
 	RequestedAt time.Time `json:"requested_at"`
 }
 

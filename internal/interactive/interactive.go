@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -69,11 +70,7 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 		if err != nil || req == nil {
 			return code, err
 		}
-		h := hooks.Handler{Store: r.Store, Profile: current.Name, Now: r.Now}
-		if err := h.MarkLimited(); err != nil {
-			return 0, err
-		}
-		next, carry, err := r.decide(ctx, current, *req)
+		next, carry, err := r.next(ctx, current, *req)
 		if err != nil {
 			return 0, err
 		}
@@ -145,7 +142,7 @@ func (r *Runner) watch(ctx context.Context, p profiles.Profile, since time.Time)
 		}
 		var taken *state.SwitchRequest
 		_ = r.Store.Update(func(st *state.State) error {
-			if st.SwitchRequest != nil && *st.SwitchRequest == *req {
+			if st.SwitchRequest != nil && st.SwitchRequest.RequestedAt.Equal(req.RequestedAt) && st.SwitchRequest.Profile == req.Profile {
 				taken, st.SwitchRequest = st.SwitchRequest, nil
 			}
 			return nil
@@ -280,4 +277,35 @@ func describe(reason string) string {
 
 func (r *Runner) printf(format string, a ...any) {
 	_, _ = fmt.Fprintf(r.Out, format, a...)
+}
+
+// next resolves a switch request into the profile to continue with and whether
+// to carry the conversation. A nil profile means the user quit.
+func (r *Runner) next(ctx context.Context, current profiles.Profile, req state.SwitchRequest) (*profiles.Profile, bool, error) {
+	if req.Reason == state.ReasonManual {
+		return r.handoff(current, req)
+	}
+	h := hooks.Handler{Store: r.Store, Profile: current.Name, Now: r.Now}
+	if err := h.MarkLimited(); err != nil {
+		return nil, false, err
+	}
+	return r.decide(ctx, current, req)
+}
+
+// handoff follows a request to continue in a named profile. The user has
+// decided, so nothing is asked and the profile is not put into cooldown.
+func (r *Runner) handoff(current profiles.Profile, req state.SwitchRequest) (*profiles.Profile, bool, error) {
+	i := slices.IndexFunc(r.Profiles, func(p profiles.Profile) bool { return p.Name == req.Target })
+	if i < 0 {
+		return nil, false, fmt.Errorf("switch to %q: %w", req.Target, profiles.ErrNotFound)
+	}
+	carry := r.CarryContext
+	if req.Carry != nil {
+		carry = *req.Carry
+	}
+	r.printf("switchyard: switching from %s to %s\n", current.Name, req.Target)
+	if carry {
+		r.printf("%s\n", ColdCacheHint)
+	}
+	return &r.Profiles[i], carry, nil
 }

@@ -8,7 +8,7 @@ decisions taken while building it. Where the two differ, this file wins.
 
 | Package | Purpose |
 | --- | --- |
-| `cmd/switchyard` | cobra CLI: `init add login list status switch run repair doctor` and the hidden `hook` command |
+| `cmd/switchyard` | cobra CLI: `init add login list status switch handoff run repair doctor` and the hidden `hook` command |
 | `internal/config` | `config.toml` loading, defaults, validation; data and config directory lookup |
 | `internal/state` | `state.json` with inter-process file lock (`gofrs/flock`) and atomic writes |
 | `internal/profiles` | profile directories, `claude auth login/status` wrappers, subscription validation |
@@ -138,3 +138,10 @@ Consumers must check `schema` first.
   wait or quit. A carried conversation relaunches with `--resume <session_id>`
   (or `--continue` without an ID) plus `continue_prompt` as the first message.
   The termination mechanism is provisional until spike #7.
+- **Handoff.** `switchyard handoff <name> [--resume|--fresh] [--session <id>]`
+  writes a `switch_request` with `reason: manual`, the target profile and the
+  carry choice for the active profile. It is the interface of the mod's `/switch`
+  and pane buttons. The launcher follows it without asking and without a
+  cooldown for the old profile; an unknown target ends the run with an error. It
+  only has an effect while claude runs under `run` or `switch`, and the command
+  cannot tell whether that is the case.

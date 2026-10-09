@@ -315,3 +315,53 @@ func TestStaleRequestIsIgnored(t *testing.T) {
 		t.Error("a request from before the launch ended the session")
 	}
 }
+
+// handoffAfter writes a manual switch request for profile once claude has had
+// time to start.
+func (f *fixture) handoffAfter(t *testing.T, profile string, req state.SwitchRequest) {
+	t.Helper()
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		req.Profile, req.Reason, req.RequestedAt = profile, state.ReasonManual, time.Now().UTC()
+		_ = f.store.Update(func(st *state.State) error { st.SwitchRequest = &req; return nil })
+	}()
+}
+
+func TestManualHandoffSwitchesWithoutAsking(t *testing.T) {
+	for _, carry := range []bool{true, false} {
+		t.Run(map[bool]string{true: "carry", false: "fresh"}[carry], func(t *testing.T) {
+			// a-thr stays at its prompt (no threshold is configured), b runs to the end.
+			f := newFixture(t, "", "a-thr", "b")
+			f.runner.Mode = config.ModeAsk
+			f.runner.In = strings.NewReader("") // asking would end the run as a quit
+			f.handoffAfter(t, "a-thr", state.SwitchRequest{Target: "b", SessionID: "s1", Carry: &carry})
+
+			code, err := f.run(t)
+			if err != nil || code != 0 {
+				t.Fatalf("Run = %d, %v", code, err)
+			}
+			args, dir := f.lastReport(t)
+			if dir != f.runner.Profiles[1].Dir {
+				t.Fatalf("second launch used %q, want %q", dir, f.runner.Profiles[1].Dir)
+			}
+			if got := slices.Contains(args, "--resume") && slices.Contains(args, "s1"); got != carry {
+				t.Errorf("resumed = %v, want %v (args %v)", got, carry, args)
+			}
+			st, _ := f.store.Read()
+			if !st.Profiles["a-thr"].CooldownUntil.IsZero() {
+				t.Error("a manual handoff must not put the profile into cooldown")
+			}
+			if strings.Contains(f.out.String(), "Switch to") {
+				t.Errorf("a manual handoff asked: %q", f.out.String())
+			}
+		})
+	}
+}
+
+func TestManualHandoffToUnknownProfileFails(t *testing.T) {
+	f := newFixture(t, "", "a-thr", "b")
+	f.handoffAfter(t, "a-thr", state.SwitchRequest{Target: "zzz"})
+	if _, err := f.run(t); !errors.Is(err, profiles.ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
