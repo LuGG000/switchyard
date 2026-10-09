@@ -3,15 +3,27 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 var version = "0.0.0-dev"
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Println("switchyard", version)
-		return
+func newRootCmd() *cobra.Command {
+	root := &cobra.Command{
+		Use:           "switchyard",
+		Short:         "Account switcher with limit failover for Claude Code subscription logins",
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
-	fmt.Fprintln(os.Stderr, "usage: switchyard --version")
-	os.Exit(2)
+	root.SetVersionTemplate("switchyard {{.Version}}\n")
+	return root
+}
+
+func main() {
+	if err := newRootCmd().Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, "switchyard:", err)
+		os.Exit(1)
+	}
 }
