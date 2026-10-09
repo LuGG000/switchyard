@@ -26,10 +26,22 @@ const (
 	lockWait   = 10 * time.Second
 )
 
+// Usage is the last known consumption of one rate limit window.
+type Usage struct {
+	// UsedPercent is the consumed share of the window, 0 to 100.
+	UsedPercent float64 `json:"used_percent"`
+	// ResetsAt is when the window resets.
+	ResetsAt time.Time `json:"resets_at,omitzero"`
+	// UpdatedAt is when the value was recorded.
+	UpdatedAt time.Time `json:"updated_at,omitzero"`
+}
+
 // Profile is the per-profile runtime data.
 type Profile struct {
 	LastUsed      time.Time `json:"last_used,omitzero"`
 	CooldownUntil time.Time `json:"cooldown_until,omitzero"`
+	FiveHour      *Usage    `json:"five_hour,omitempty"`
+	SevenDay      *Usage    `json:"seven_day,omitempty"`
 }
 
 // State is the content of state.json.
