@@ -141,19 +141,20 @@ Consumers must check `schema` first.
   The termination mechanism is provisional until spike #7.
 - **Handoff.** `switchyard handoff <name> [--resume|--fresh] [--session <id>]`
   writes a `switch_request` with `reason: manual`, the target profile and the
-  carry choice for the active profile. It is the interface of the mod's `/switch`
+  carry choice for the active profile. It is the interface of the mod's `/switchyard switch`
   and pane buttons. The launcher follows it without asking and without a
   cooldown for the old profile; an unknown target ends the run with an error. It
   only has an effect while claude runs under `run` or `switch`, and the command
   cannot tell whether that is the case.
 - **Mod.** `mod/` is a Claude Code plugin of function hooks (TypeScript) that
   talks to the core only through the CLI: `status --json` (the mod accepts schema
-  1 and treats anything else as incompatible) and `handoff`. It has no status
+  1 and treats anything else as incompatible) and `config` and `handoff`. It has no status
   line of its own (the statusLine that `run` injects already shows the active
-  account; a second line duplicated it). It adds `/accounts` (a pane with cards and
-  buttons, plus a Failover card that sets `mode` and `carry_context` through
-  `config set`) and `/switch` and `/failover`; it refreshes on `/accounts` and after
-  each turn. Its colors are settings of switchyard (`color_*`, empty = the theme's;
+  account; a second line duplicated it). It has one command, `/switchyard`: a pane with an
+  overview page (account cards and a Failover card that sets `mode` and `carry_context`
+  through `config set`) and a style page (palettes, preview, colors in use), plus the
+  arguments `style`, `switch <account>` and `mode`. The page is kept in `$.state`.
+  It refreshes on opening and after each turn. Its colors are settings of switchyard (`color_*`, empty = the theme's;
   `config colors <palette>` sets all), so they never touch the Claude theme or other mods. A
   missing or failing `switchyard` is explained in the pane. The marketplace file is
   `.claude-plugin/marketplace.json` at the repo root (`source: ./mod`);

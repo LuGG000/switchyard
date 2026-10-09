@@ -1,54 +1,59 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Settings, Snapshot, Usage } from '../types'
+import type { Page, Settings, Snapshot, Usage } from '../types'
+import { palette } from './palette'
 import {
   describeSettings,
   isCoolingDown,
-  parseConfig,
-  parseFailoverArg,
   PALETTES,
+  parseCommand,
+  parseConfig,
   parseStatus,
-  parseSwitchArgs,
   problem,
   resetLabel,
   timeOfDay,
   usageBar,
   usageLevel,
+  USAGE,
 } from './status'
-import { palette } from './palette'
 
-const PANE = 'accounts'
-
+const PANE = 'switchyard'
 
 const snapshot = atom({ plugin: 'switchyard-mod', key: 'snapshot' } as const, null)
+const page = atom({ plugin: 'switchyard-mod', key: 'page' } as const, 'main')
 
 type Engine = EngineInterface
 
+/** Runs `switchyard` with `argv`; the text of a refusal when it fails, undefined when it worked. */
+async function run($: Engine, argv: string[]): Promise<{ stdout: string } | { error: string }> {
+  try {
+    const result = await $.process.run(['switchyard', ...argv], { timeoutMs: 10_000 })
+
+    return result.exitCode === 0
+      ? { stdout: result.stdout }
+      : { error: result.stderr.trim() || `switchyard ${argv[0]} failed (exit code ${result.exitCode})` }
+  } catch {
+    return { error: 'switchyard was not found in PATH' }
+  }
+}
+
 /** Reads the failover settings; null when the installed switchyard has no `config --json` the mod reads. */
 async function loadSettings($: Engine): Promise<Settings | null> {
-  try {
-    const run = await $.process.run(['switchyard', 'config', '--json'], { timeoutMs: 10_000 })
+  const result = await run($, ['config', '--json'])
 
-    return run.exitCode === 0 ? parseConfig(run.stdout) : null
-  } catch {
-    return null
-  }
+  return 'stdout' in result ? parseConfig(result.stdout) : null
 }
 
 /** Reads the state of switchyard from its CLI; a missing or failing command is a snapshot, not an error. */
 async function load($: Engine): Promise<Snapshot> {
-  try {
-    const run = await $.process.run(['switchyard', 'status', '--json'], { timeoutMs: 10_000 })
-    if (run.exitCode !== 0) {
-      return { kind: 'unavailable', reason: `exit code ${run.exitCode}` }
-    }
-    const status = parseStatus(run.stdout)
-
-    return status.kind === 'ok' ? { ...status, settings: await loadSettings($) } : status
-  } catch {
-    return { kind: 'unavailable', reason: 'command not found' }
+  const result = await run($, ['status', '--json'])
+  if ('error' in result) {
+    return { kind: 'unavailable', reason: result.error }
   }
+  const status = parseStatus(result.stdout)
+
+  return status.kind === 'ok' ? { ...status, settings: await loadSettings($) } : status
 }
 
 async function refresh($: Engine): Promise<void> {
@@ -56,69 +61,42 @@ async function refresh($: Engine): Promise<void> {
   await update($, snapshot, () => current)
 }
 
-/** Changes one failover setting; the answer is the text to show. */
-async function changeSetting($: Engine, key: string, value: string): Promise<string> {
-  try {
-    const run = await $.process.run(['switchyard', 'config', 'set', key, value], { timeoutMs: 10_000 })
-    if (run.exitCode !== 0) {
-      return run.stderr.trim() || `switchyard config failed (exit code ${run.exitCode})`
-    }
-  } catch {
-    return 'switchyard was not found in PATH'
+/** Runs a command that changes switchyard, then refreshes; the answer is the text to show. */
+async function change($: Engine, argv: string[], done: string): Promise<string> {
+  const result = await run($, argv)
+  if ('error' in result) {
+    return result.error
   }
   await refresh($)
 
-  return `${key} = ${value}`
+  return done
 }
 
-/** Sets all pane colors to a palette of switchyard; the answer is the text to show. */
-async function changeColors($: Engine, name: string): Promise<string> {
-  try {
-    const run = await $.process.run(['switchyard', 'config', 'colors', name], { timeoutMs: 10_000 })
-    if (run.exitCode !== 0) {
-      return run.stderr.trim() || `switchyard config colors failed (exit code ${run.exitCode})`
-    }
-  } catch {
-    return 'switchyard was not found in PATH'
-  }
-  await refresh($)
-
-  return `Colors: ${name}`
-}
+const setSetting = ($: Engine, key: string, value: string) => change($, ['config', 'set', key, value], `${key} = ${value}`)
+const setPalette = ($: Engine, name: string) => change($, ['config', 'colors', name], `Colors: ${name}`)
 
 /** Asks the launcher to continue in `name`; the answer is the text to show. */
 async function handoff($: Engine, name: string, flag?: '--resume' | '--fresh'): Promise<string> {
-  const argv = ['switchyard', 'handoff', name, '--session', await $.session.id()]
-  if (flag) {
-    argv.push(flag)
-  }
-  try {
-    const run = await $.process.run(argv, { timeoutMs: 10_000 })
-    if (run.exitCode !== 0) {
-      return run.stderr.trim() || `switchyard handoff failed (exit code ${run.exitCode})`
-    }
-  } catch {
-    return 'switchyard was not found in PATH'
+  const result = await run($, ['handoff', name, '--session', await $.session.id(), ...(flag ? [flag] : [])])
+  if ('error' in result) {
+    return result.error
   }
 
   return `Handoff to ${name} requested. If claude was started with switchyard run, it restarts in ${name}.`
 }
 
+async function open($: Engine, to: Page): Promise<void> {
+  await update($, page, () => to)
+  await refresh($)
+  await $.ui.open({ id: PANE, title: 'switchyard' })
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: 'accounts',
-      description: 'Show the switchyard accounts and their usage',
-    })
-    await $.command.register({
-      name: 'switch',
-      description: 'Continue this session in another switchyard account',
-      argumentHint: '<account> [resume|fresh]',
-    })
-    await $.command.register({
-      name: 'failover',
-      description: 'Show or set what happens at a limit: switch automatically or ask',
-      argumentHint: '[auto|ask]',
+      name: 'switchyard',
+      description: 'Accounts, failover and style of switchyard',
+      argumentHint: '[style | switch <account> [resume|fresh] | mode [auto|ask]]',
     })
 
     return next(e)
@@ -130,111 +108,152 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'accounts' }, async $ => {
-    await refresh($)
-    await $.ui.open({ id: PANE, title: 'Accounts' })
+  on('command.run', { command: 'switchyard' }, async ($, e) => {
+    const command = parseCommand(e.args)
+    switch (command.kind) {
+      case 'open':
+        await open($, command.page)
 
-    return { text: 'Accounts pane opened.' }
-  })
+        return { text: command.page === 'style' ? 'Style page opened.' : 'switchyard pane opened.' }
+      case 'switch':
+        return { text: await handoff($, command.name, command.flag) }
+      case 'mode': {
+        if (command.mode !== null) {
+          return { text: await setSetting($, 'mode', command.mode) }
+        }
+        await refresh($)
+        const current = await read($, snapshot)
 
-  on('command.run', { command: 'switch' }, async ($, e) => {
-    const parsed = parseSwitchArgs(e.args)
-    if (!parsed) {
-      return { text: 'Usage: /switch <account> [resume|fresh]' }
+        return { text: current?.kind === 'ok' && current.settings ? describeSettings(current.settings) : 'switchyard settings are not available.' }
+      }
+      default:
+        return { text: USAGE }
     }
-
-    return { text: await handoff($, parsed.name, parsed.flag) }
-  })
-
-  on('command.run', { command: 'failover' }, async ($, e) => {
-    const choice = parseFailoverArg(e.args)
-    if (choice === null) {
-      return { text: 'Usage: /failover [auto|ask]' }
-    }
-    if (choice === '') {
-      await refresh($)
-      const current = await read($, snapshot)
-
-      return { text: current?.kind === 'ok' && current.settings ? describeSettings(current.settings) : 'switchyard settings are not available.' }
-    }
-
-    return { text: await changeSetting($, 'mode', choice) }
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const current = await read($, snapshot)
+    const shown = await read($, page)
     const now = await $.clock.now()
     const hint = problem(current)
-    const colors = palette(current?.kind === 'ok' ? current.settings?.colors : null)
-    const tint = (percent: number): string => ({ ok: colors.low, warn: colors.medium, high: colors.high })[usageLevel(percent)]
+    const settings = current?.kind === 'ok' ? current.settings : null
+    const colors = palette(settings?.colors)
     // A background has to fill the whole pane, not just the height of its content.
     const fill = colors.background
       ? { backgroundColor: colors.background, width: e.props.bodyColumns, minHeight: e.props.scroll.bodyRows }
       : {}
+    const tint = (percent: number): string => ({ ok: colors.low, warn: colors.medium, high: colors.high })[usageLevel(percent)]
+    const dim = (text: string) => <Text color={colors.text} dimColor>{text}</Text>
+
+    const toPage = (key: string, label: string, to: Page) => (
+      <Button key={key} label={label} onPress={() => update($, page, () => to)} />
+    )
+    const refreshButton = <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
 
     if (current?.kind !== 'ok' || hint) {
       return (
         <Box flexDirection="column" {...fill}>
-          <Text color={colors.text} dimColor>{hint}</Text>
-          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+          {dim(hint ?? '')}
+          {refreshButton}
         </Box>
       )
     }
 
-    const usageRow = (label: string, usage: Usage | null) => (
+    const bar = (label: string, percent: number, extra: string) => (
       <Box key={label}>
-        <Text color={colors.text} dimColor>{label} </Text>
-        {usage ? (
-          <Box>
-            <Text color={tint(usage.used_percent)}>{usageBar(usage.used_percent)}</Text>
-            <Text color={colors.text}> {String(Math.round(usage.used_percent)).padStart(3)}%</Text>
-            <Text color={colors.text} dimColor> {resetLabel(usage.resets_at, now)}</Text>
-          </Box>
-        ) : (
-          <Text color={colors.text} dimColor>no data yet</Text>
-        )}
+        {dim(`${label} `)}
+        <Text color={tint(percent)}>{usageBar(percent)}</Text>
+        <Text color={colors.text}> {String(Math.round(percent)).padStart(3)}%</Text>
+        {dim(` ${extra}`)}
       </Box>
     )
+    const usageRow = (label: string, usage: Usage | null) =>
+      usage ? bar(label, usage.used_percent, resetLabel(usage.resets_at, now)) : <Box key={label}>{dim(`${label} no data yet`)}</Box>
+
+    if (shown === 'style') {
+      const choice = (name: string) => (
+        <Button
+          key={`colors-${name}`}
+          label={name === 'default' ? 'theme' : name}
+          onPress={async () => $.ui.toast(await setPalette($, name))}
+        />
+      )
+      const slots: [string, string][] = settings
+        ? [
+            ['background', settings.colors.background],
+            ['text', settings.colors.text],
+            ['usage low', settings.colors.low],
+            ['usage medium', settings.colors.medium],
+            ['usage high', settings.colors.high],
+            ['active border', settings.colors.border_active],
+            ['other borders', settings.colors.border],
+          ]
+        : []
+
+      return (
+        <Box flexDirection="column" gap={1} {...fill}>
+          <Box gap={1}>
+            <Text bold color={colors.text}>Style</Text>
+            {toPage('back', 'Back', 'main')}
+          </Box>
+          <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
+            <Text bold color={colors.text}>Palette</Text>
+            <Box gap={1}>{PALETTES.map(choice)}</Box>
+            {dim('Only this pane changes, never your Claude theme or other mods.')}
+          </Box>
+          <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
+            <Text bold color={colors.text}>Preview</Text>
+            {bar('below 70%', 30, '')}
+            {bar('70-89%  ', 75, '')}
+            {bar('from 90% ', 95, '')}
+          </Box>
+          <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
+            <Text bold color={colors.text}>Fine tuning</Text>
+            {slots.map(([name, value]) => (
+              <Box key={name}>
+                <Text color={colors.text}>{name.padEnd(14)}</Text>
+                {dim(value === '' ? '(theme)' : value)}
+              </Box>
+            ))}
+            {dim("Change one: switchyard config set color_background '#1e1e1e'")}
+          </Box>
+        </Box>
+      )
+    }
 
     const choice = (key: string, label: string, isCurrent: boolean, setting: string, value: string) => (
       <Button
         key={key}
         label={isCurrent ? `✓ ${label}` : label}
         variant={isCurrent ? 'primary' : undefined}
-        onPress={async () => $.ui.toast(await changeSetting($, setting, value))}
+        onPress={async () => $.ui.toast(await setSetting($, setting, value))}
       />
     )
-    const settings = current.settings
 
     return (
       <Box flexDirection="column" gap={1} {...fill}>
+        <Box gap={1}>
+          <Text bold color={colors.text}>switchyard</Text>
+          {toPage('to-style', 'Style', 'style')}
+          {refreshButton}
+        </Box>
         {settings && (
           <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
             <Text bold color={colors.text}>Failover</Text>
             <Box gap={1}>
-              <Text color={colors.text} dimColor>At a limit</Text>
+              {dim('At a limit')}
               {choice('mode-auto', 'switch automatically', settings.mode === 'auto', 'mode', 'auto')}
               {choice('mode-ask', 'ask me', settings.mode === 'ask', 'mode', 'ask')}
             </Box>
             <Box gap={1}>
-              <Text color={colors.text} dimColor>Conversation</Text>
+              {dim('Conversation')}
               {choice('carry-on', 'take it along', settings.carry_context, 'carry_context', 'true')}
               {choice('carry-off', 'start new', !settings.carry_context, 'carry_context', 'false')}
             </Box>
-            <Box gap={1}>
-              <Text color={colors.text} dimColor>Colors</Text>
-              {PALETTES.map(name => (
-                <Button
-                  key={`colors-${name}`}
-                  label={name === 'default' ? 'theme' : name}
-                  onPress={async () => $.ui.toast(await changeColors($, name))}
-                />
-              ))}
-            </Box>
           </Box>
         )}
-        {current.profiles.length === 0 && <Text color={colors.text} dimColor>No accounts yet. Create one with: switchyard add &lt;name&gt;</Text>}
+        {current.profiles.length === 0 && dim('No accounts yet. Create one with: switchyard add <name>')}
         {current.profiles.map(p => (
           <Box
             key={p.name}
@@ -248,7 +267,7 @@ export const register: Register = on => {
                 {p.active ? '● ' : '○ '}
                 {p.name}
               </Text>
-              {p.active && <Text color={colors.text} dimColor> active</Text>}
+              {p.active && dim(' active')}
               {p.cooldown_until !== null && isCoolingDown(p, now) && (
                 <Text color={colors.high}> limit until {timeOfDay(p.cooldown_until)}</Text>
               )}
@@ -272,10 +291,7 @@ export const register: Register = on => {
             )}
           </Box>
         ))}
-        <Box gap={1}>
-          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
-          <Text color={colors.text} dimColor>A switch restarts claude (needs switchyard run).</Text>
-        </Box>
+        {dim('A switch restarts claude (needs switchyard run).')}
       </Box>
     )
   })

@@ -51,7 +51,7 @@ function runCommand($: Engine, command: string, args: string) {
 }
 
 async function openAccounts($: Engine) {
-  await runCommand($, 'accounts', '')
+  await runCommand($, 'switchyard', '')
 }
 
 test('the pane lists the accounts and offers to continue in the other one', async ($, on) => {
@@ -59,7 +59,7 @@ test('the pane lists the accounts and offers to continue in the other one', asyn
   await openAccounts($)
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface, component: 'Pane', props: PANE, requestId: 'accounts' })
+    const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface, component: 'Pane', props: PANE, requestId: 'switchyard' })
     expect(await ui.find({ type: 'Text', text: /main/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /20%/ })).toBeDefined()
     expect(await ui.find({ key: 'switch-zweit' })).toBeDefined()
@@ -72,7 +72,7 @@ test('pressing a button asks switchyard for a handoff', async ($, on) => {
   const calls = world(on, argv => ({ exitCode: 0, stdout: argv[1] === 'status' ? STATUS : 'Handoff to zweit requested\n', stderr: '' }))
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   await ui.press({ key: 'fresh-zweit' })
   const handoff = calls.find(argv => argv[1] === 'handoff')
   expect(handoff?.slice(0, 3)).toEqual(['switchyard', 'handoff', 'zweit'])
@@ -84,7 +84,7 @@ test('a missing switchyard is explained in the pane and nowhere else', async ($,
   world(on, () => null)
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   expect(await ui.find({ type: 'Text', text: /not available/ })).toBeDefined()
   expect(await ui.find({ key: 'refresh' })).toBeDefined()
   await ui.unmount()
@@ -94,7 +94,7 @@ test('an incompatible schema is explained in the pane', async ($, on) => {
   world(on, () => ({ exitCode: 0, stdout: JSON.stringify({ schema: 7, profiles: [] }), stderr: '' }))
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   expect(await ui.find({ type: 'Text', text: /schema 7/ })).toBeDefined()
   await ui.unmount()
 })
@@ -104,12 +104,12 @@ test('/switch passes the choice on and reports a refusal', async ($, on) => {
     argv[1] === 'handoff' ? { exitCode: 1, stdout: '', stderr: 'zweit is already the active profile\n' } : { exitCode: 0, stdout: STATUS, stderr: '' },
   )
 
-  const refused = await runCommand($, 'switch', 'zweit fresh')
+  const refused = await runCommand($, 'switchyard', 'switch zweit fresh')
   expect(refused.text).toMatch(/already the active profile/)
   expect(calls.find(argv => argv[1] === 'handoff')?.at(-1)).toBe('--fresh')
 
-  const usage = await runCommand($, 'switch', '')
-  expect(usage.text).toMatch(/Usage: \/switch/)
+  const usage = await runCommand($, 'switchyard', 'switch')
+  expect(usage.text).toMatch(/Usage: \/switchyard/)
 })
 
 const COLORS = { background: '', text: '', low: '', medium: '', high: '', border_active: '', border: '' }
@@ -128,7 +128,7 @@ test('the pane shows the failover settings and marks the current choice', async 
   world(on, withConfig)
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   expect((await ui.find({ key: 'mode-ask' }))?.text).toMatch(/✓/)
   expect((await ui.find({ key: 'mode-auto' }))?.text).not.toMatch(/✓/)
   expect((await ui.find({ key: 'carry-on' }))?.text).toMatch(/✓/)
@@ -139,7 +139,7 @@ test('pressing a failover choice changes the setting through switchyard', async 
   const calls = world(on, withConfig)
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   await ui.press({ key: 'mode-auto' })
   await ui.press({ key: 'carry-off' })
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'mode', 'auto'])
@@ -151,26 +151,26 @@ test('an older switchyard without config leaves the settings out of the pane', a
   world(on, argv => (argv[1] === 'config' ? { exitCode: 1, stdout: '', stderr: 'unknown command' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   expect(await ui.find({ key: 'mode-auto' })).toBeUndefined()
   expect(await ui.find({ key: 'switch-zweit' })).toBeDefined()
   await ui.unmount()
 })
 
-test('/failover shows, sets and refuses', async ($, on) => {
+test('/switchyard mode shows, sets and refuses', async ($, on) => {
   const calls = world(on, withConfig)
 
-  expect((await runCommand($, 'failover', '')).text).toBe('At a limit: ask (asks in the terminal). Conversation: taken along.')
-  expect((await runCommand($, 'failover', 'auto')).text).toBe('mode = auto')
+  expect((await runCommand($, 'switchyard', 'mode')).text).toBe('At a limit: ask (asks in the terminal). Conversation: taken along.')
+  expect((await runCommand($, 'switchyard', 'mode auto')).text).toBe('mode = auto')
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'mode', 'auto'])
-  expect((await runCommand($, 'failover', 'sometimes')).text).toMatch(/Usage: \/failover/)
+  expect((await runCommand($, 'switchyard', 'mode sometimes')).text).toMatch(/Usage: \/switchyard/)
 })
 
 test('the pane follows the theme unless colors are set', async ($, on) => {
   world(on, withConfig)
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   const drawn = JSON.stringify(await ui.drawn())
   expect(drawn).not.toContain('backgroundColor')
   expect(drawn).toContain('"success"')
@@ -182,7 +182,7 @@ test('the colors of the switchyard config are used by the pane', async ($, on) =
   world(on, argv => (argv[1] === 'config' ? { exitCode: 0, stdout: colored, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   const drawn = JSON.stringify(await ui.drawn())
   for (const wanted of ['"backgroundColor":"#101010"', '"color":"white"', '"color":"cyan"', '"#00ff88"']) {
     expect(drawn).toContain(wanted)
@@ -194,10 +194,30 @@ test('pressing a palette changes the colors through switchyard', async ($, on) =
   const calls = world(on, withConfig)
   await openAccounts($)
 
-  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  await ui.press({ key: 'to-style' })
   await ui.press({ key: 'colors-dark' })
   await ui.press({ key: 'colors-default' })
   expect(calls).toContainEqual(['switchyard', 'config', 'colors', 'dark'])
   expect(calls).toContainEqual(['switchyard', 'config', 'colors', 'default'])
+  await ui.unmount()
+})
+
+test('the style page shows the palettes, a preview and the colors in use, and leads back', async ($, on) => {
+  const dark = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, colors: { ...COLORS, background: '#1e1e1e', high: '#f48771' } })
+  world(on, argv => (argv[1] === 'config' ? { exitCode: 0, stdout: dark, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
+  await runCommand($, 'switchyard', 'style')
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  for (const key of ['colors-default', 'colors-dark', 'colors-light', 'back']) {
+    expect(await ui.find({ key })).toBeDefined()
+  }
+  expect(await ui.find({ type: 'Text', text: /#1e1e1e/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /from 90%/ })).toBeDefined()
+  expect(await ui.find({ key: 'mode-auto' })).toBeUndefined()
+
+  await ui.press({ key: 'back' })
+  expect(await ui.find({ key: 'mode-auto' })).toBeDefined()
+  expect(await ui.find({ key: 'to-style' })).toBeDefined()
   await ui.unmount()
 })

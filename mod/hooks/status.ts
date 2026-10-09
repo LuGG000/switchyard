@@ -1,4 +1,4 @@
-import type { Colors, ProfileStatus, Settings, Snapshot } from '../types'
+import type { Colors, Page, ProfileStatus, Settings, Snapshot } from '../types'
 
 /** The `status --json` schema this mod reads. */
 export const SUPPORTED_SCHEMA = 1
@@ -81,25 +81,6 @@ export function problem(snapshot: Snapshot | null): string | undefined {
   }
 }
 
-/** Splits `/switch` arguments into the profile and the carry choice. */
-export function parseSwitchArgs(args: string): { name: string; flag?: '--resume' | '--fresh' } | null {
-  const [name, option, ...rest] = args.trim().split(/\s+/)
-  if (!name || rest.length > 0) {
-    return null
-  }
-  if (option === undefined) {
-    return { name }
-  }
-  if (option === 'fresh' || option === '--fresh') {
-    return { name, flag: '--fresh' }
-  }
-  if (option === 'resume' || option === '--resume') {
-    return { name, flag: '--resume' }
-  }
-
-  return null
-}
-
 export type Level = 'ok' | 'warn' | 'high'
 
 /** How full a window is: calm below 70%, a warning below 90%, then high. */
@@ -167,13 +148,6 @@ export function describeSettings(s: Settings): string {
   return `At a limit: ${mode}. Conversation: ${s.carry_context ? 'taken along' : 'started new'}.`
 }
 
-/** The argument of `/failover`: auto, ask, or nothing to show the current setting. */
-export function parseFailoverArg(args: string): 'auto' | 'ask' | '' | null {
-  const word = args.trim().toLowerCase()
-
-  return word === '' || word === 'auto' || word === 'ask' ? word : null
-}
-
 /** The colors of the config; a missing or malformed entry is empty, which means the theme's color. */
 function parseColors(value: unknown): Colors {
   const text = (key: string): string => (isRecord(value) && typeof value[key] === 'string' ? value[key] : '')
@@ -191,3 +165,51 @@ function parseColors(value: unknown): Colors {
 
 /** The palettes `switchyard config colors` knows, in display order. */
 export const PALETTES = ['default', 'dark', 'light'] as const
+
+/** What `/switchyard` was asked to do. */
+export type Command =
+  | { kind: 'open'; page: Page }
+  | { kind: 'switch'; name: string; flag?: '--resume' | '--fresh' }
+  /** `mode: null` shows the current setting. */
+  | { kind: 'mode'; mode: 'auto' | 'ask' | null }
+  | { kind: 'help' }
+
+export const USAGE = [
+  'Usage: /switchyard [style]',
+  '       /switchyard switch <account> [resume|fresh]',
+  '       /switchyard mode [auto|ask]',
+].join('\n')
+
+/** Reads the arguments of `/switchyard`; anything it does not know is help. */
+export function parseCommand(args: string): Command {
+  const [word, ...rest] = args.trim().split(/\s+/).filter(Boolean)
+  const arg = rest[0]?.toLowerCase()
+  switch (word?.toLowerCase()) {
+    case undefined:
+      return { kind: 'open', page: 'main' }
+    case 'style':
+      return rest.length === 0 ? { kind: 'open', page: 'style' } : { kind: 'help' }
+    case 'mode':
+      if (rest.length === 0) {
+        return { kind: 'mode', mode: null }
+      }
+
+      return rest.length === 1 && (arg === 'auto' || arg === 'ask') ? { kind: 'mode', mode: arg } : { kind: 'help' }
+    case 'switch': {
+      const name = rest[0]
+      if (!name || rest.length > 2) {
+        return { kind: 'help' }
+      }
+      const option = rest[1]?.toLowerCase().replace(/^--/, '')
+      if (option === undefined) {
+        return { kind: 'switch', name }
+      }
+
+      return option === 'fresh' || option === 'resume'
+        ? { kind: 'switch', name, flag: option === 'fresh' ? '--fresh' : '--resume' }
+        : { kind: 'help' }
+    }
+    default:
+      return { kind: 'help' }
+  }
+}

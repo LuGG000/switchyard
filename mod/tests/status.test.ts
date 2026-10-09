@@ -3,9 +3,8 @@ import { expect, test } from 'claude-code/testing'
 import {
   describeSettings,
   parseConfig,
-  parseFailoverArg,
   parseStatus,
-  parseSwitchArgs,
+  parseCommand,
   problem,
   resetLabel,
   usageBar,
@@ -67,14 +66,17 @@ test('problems are described for the pane', async () => {
   expect(problem(parseStatus(OK))).toBeUndefined()
 })
 
-test('parses the arguments of /switch', async () => {
-  expect(parseSwitchArgs('zweit')).toEqual({ name: 'zweit' })
-  expect(parseSwitchArgs('  zweit  fresh ')).toEqual({ name: 'zweit', flag: '--fresh' })
-  expect(parseSwitchArgs('zweit resume')).toEqual({ name: 'zweit', flag: '--resume' })
-  expect(parseSwitchArgs('zweit --fresh')).toEqual({ name: 'zweit', flag: '--fresh' })
-  expect(parseSwitchArgs('')).toBeNull()
-  expect(parseSwitchArgs('zweit later')).toBeNull()
-  expect(parseSwitchArgs('a b c')).toBeNull()
+test('parses the arguments of /switchyard', async () => {
+  expect(parseCommand('')).toEqual({ kind: 'open', page: 'main' })
+  expect(parseCommand('  style ')).toEqual({ kind: 'open', page: 'style' })
+  expect(parseCommand('switch zweit')).toEqual({ kind: 'switch', name: 'zweit' })
+  expect(parseCommand('switch  zweit  fresh ')).toEqual({ kind: 'switch', name: 'zweit', flag: '--fresh' })
+  expect(parseCommand('SWITCH zweit --resume')).toEqual({ kind: 'switch', name: 'zweit', flag: '--resume' })
+  expect(parseCommand('mode')).toEqual({ kind: 'mode', mode: null })
+  expect(parseCommand('mode AUTO')).toEqual({ kind: 'mode', mode: 'auto' })
+  for (const bad of ['switch', 'switch a b c', 'switch zweit later', 'mode never', 'mode auto ask', 'style now', 'accounts', 'x']) {
+    expect(parseCommand(bad)).toEqual({ kind: 'help' })
+  }
 })
 
 test('usage levels turn from calm to high', async () => {
@@ -111,11 +113,4 @@ test('reads the failover settings of the supported schema', async () => {
 test('the settings are described in a sentence', async () => {
   expect(describeSettings({ mode: 'auto', carry_context: false, colors: NO_COLORS })).toBe('At a limit: auto (switches without asking). Conversation: started new.')
   expect(describeSettings({ mode: 'ask', carry_context: true, colors: NO_COLORS })).toBe('At a limit: ask (asks in the terminal). Conversation: taken along.')
-})
-
-test('parses the argument of /failover', async () => {
-  expect(parseFailoverArg('')).toBe('')
-  expect(parseFailoverArg(' AUTO ')).toBe('auto')
-  expect(parseFailoverArg('ask')).toBe('ask')
-  expect(parseFailoverArg('never')).toBeNull()
 })
