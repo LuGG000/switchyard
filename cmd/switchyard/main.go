@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -20,7 +21,7 @@ func newRootCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.SetVersionTemplate("switchyard {{.Version}}\n")
-	root.AddCommand(newAddCmd(), newLoginCmd(), newListCmd(), newRepairCmd())
+	root.AddCommand(newAddCmd(), newLoginCmd(), newListCmd(), newRepairCmd(), newRunCmd())
 	return root
 }
 
@@ -28,7 +29,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	err := newRootCmd().ExecuteContext(ctx)
 	stop()
-	if err != nil {
+	var exit exitError
+	switch {
+	case errors.As(err, &exit):
+		os.Exit(exit.code)
+	case err != nil:
 		fmt.Fprintln(os.Stderr, "switchyard:", err)
 		os.Exit(1)
 	}
