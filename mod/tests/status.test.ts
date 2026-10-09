@@ -5,7 +5,10 @@ import {
   parseStatus,
   parseSwitchArgs,
   problem,
+  resetLabel,
   statusLine,
+  usageBar,
+  usageLevel,
 } from '../hooks/status'
 import type { Snapshot } from '../types'
 
@@ -95,4 +98,25 @@ test('parses the arguments of /switch', async () => {
   expect(parseSwitchArgs('')).toBeNull()
   expect(parseSwitchArgs('zweit later')).toBeNull()
   expect(parseSwitchArgs('a b c')).toBeNull()
+})
+
+test('usage levels turn from calm to high', async () => {
+  expect([0, 69, 70, 89, 90, 100].map(usageLevel)).toEqual(['ok', 'ok', 'warn', 'warn', 'high', 'high'])
+})
+
+test('the usage bar is filled in proportion and never overflows', async () => {
+  expect(usageBar(0)).toBe('░░░░░░░░░░░░')
+  expect(usageBar(50)).toBe('██████░░░░░░')
+  expect(usageBar(100)).toBe('████████████')
+  expect(usageBar(250)).toBe('████████████')
+  expect(usageBar(-5)).toBe('░░░░░░░░░░░░')
+  expect(usageBar(50, 4)).toBe('██░░')
+})
+
+test('a reset is named by time today and by weekday and time later', async () => {
+  const now = new Date(2026, 9, 9, 12, 0).getTime()
+  expect(resetLabel(new Date(2026, 9, 9, 15, 30).toISOString(), now)).toBe('resets 15:30')
+  expect(resetLabel(new Date(2026, 9, 12, 8, 5).toISOString(), now)).toBe('resets Mon 08:05')
+  expect(resetLabel(new Date(2026, 9, 9, 9, 0).toISOString(), now)).toBe('')
+  expect(resetLabel('', now)).toBe('')
 })

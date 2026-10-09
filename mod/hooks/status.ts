@@ -125,3 +125,42 @@ export function parseSwitchArgs(args: string): { name: string; flag?: '--resume'
 
   return null
 }
+
+export type Level = 'ok' | 'warn' | 'high'
+
+/** How full a window is: calm below 70%, a warning below 90%, then high. */
+export function usageLevel(percent: number): Level {
+  if (percent >= 90) {
+    return 'high'
+  }
+
+  return percent >= 70 ? 'warn' : 'ok'
+}
+
+/** A bar of `width` cells filled up to `percent`. */
+export function usageBar(percent: number, width = 12): string {
+  const filled = Math.min(width, Math.max(0, Math.round((percent / 100) * width)))
+
+  return '█'.repeat(filled) + '░'.repeat(width - filled)
+}
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** When a window resets: the time today, else the weekday and time. Empty without a reset. */
+export function resetLabel(iso: string, now: number): string {
+  const at = Date.parse(iso)
+  if (Number.isNaN(at) || at <= now) {
+    return ''
+  }
+  const date = new Date(at)
+  const time = clock(iso)
+
+  return date.toDateString() === new Date(now).toDateString()
+    ? `resets ${time}`
+    : `resets ${DAYS[date.getDay()]} ${time}`
+}
+
+/** The local time of day of an ISO timestamp. */
+export function timeOfDay(iso: string): string {
+  return clock(iso)
+}

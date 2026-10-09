@@ -1,11 +1,25 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Snapshot } from '../types'
-import { describeProfile, parseStatus, parseSwitchArgs, problem, statusLine } from './status'
+import type { Snapshot, Usage } from '../types'
+import {
+  isCoolingDown,
+  parseStatus,
+  parseSwitchArgs,
+  problem,
+  resetLabel,
+  statusLine,
+  timeOfDay,
+  usageBar,
+  usageLevel,
+} from './status'
+import type { Level } from './status'
 
 const PANE = 'accounts'
 const POLL_MS = 30_000
+
+/** Theme colors of the usage levels, so the pane follows the person's theme. */
+const COLOR: Record<Level, string> = { ok: 'success', warn: 'warning', high: 'error' }
 
 const snapshot = atom({ plugin: 'switchyard-mod', key: 'snapshot' } as const, null)
 
@@ -105,33 +119,65 @@ export const register: Register = on => {
       )
     }
 
+    const usageRow = (label: string, usage: Usage | null) => (
+      <Box key={label}>
+        <Text dimColor>{label} </Text>
+        {usage ? (
+          <Box>
+            <Text color={COLOR[usageLevel(usage.used_percent)]}>{usageBar(usage.used_percent)}</Text>
+            <Text> {String(Math.round(usage.used_percent)).padStart(3)}%</Text>
+            <Text dimColor> {resetLabel(usage.resets_at, now)}</Text>
+          </Box>
+        ) : (
+          <Text dimColor>no data yet</Text>
+        )}
+      </Box>
+    )
+
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" gap={1}>
         {current.profiles.length === 0 && <Text dimColor>No accounts yet. Create one with: switchyard add &lt;name&gt;</Text>}
         {current.profiles.map(p => (
-          <Box key={p.name}>
-            <Text bold={p.active}>
-              {p.active ? '* ' : '  '}
-              {p.name}{' '}
-            </Text>
-            <Text dimColor>{describeProfile(p, now)} </Text>
+          <Box
+            key={p.name}
+            flexDirection="column"
+            borderStyle="round"
+            borderColor={p.active ? 'success' : 'subtle'}
+            paddingX={1}
+          >
+            <Box>
+              <Text bold color={p.active ? 'success' : undefined}>
+                {p.active ? '● ' : '○ '}
+                {p.name}
+              </Text>
+              {p.active && <Text dimColor> active</Text>}
+              {p.cooldown_until !== null && isCoolingDown(p, now) && (
+                <Text color="error"> limit until {timeOfDay(p.cooldown_until)}</Text>
+              )}
+            </Box>
+            {usageRow('5h', p.five_hour)}
+            {usageRow('7d', p.seven_day)}
             {!p.active && (
-              <Button
-                key={`switch-${p.name}`}
-                label="Continue here"
-                onPress={async () => $.ui.toast(await handoff($, p.name, '--resume'))}
-              />
-            )}
-            {!p.active && (
-              <Button
-                key={`fresh-${p.name}`}
-                label="New conversation"
-                onPress={async () => $.ui.toast(await handoff($, p.name, '--fresh'))}
-              />
+              <Box gap={1} marginTop={1}>
+                <Button
+                  key={`switch-${p.name}`}
+                  label="Continue here"
+                  variant="primary"
+                  onPress={async () => $.ui.toast(await handoff($, p.name, '--resume'))}
+                />
+                <Button
+                  key={`fresh-${p.name}`}
+                  label="New conversation"
+                  onPress={async () => $.ui.toast(await handoff($, p.name, '--fresh'))}
+                />
+              </Box>
             )}
           </Box>
         ))}
-        <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+        <Box gap={1}>
+          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+          <Text dimColor>A switch restarts claude (needs switchyard run).</Text>
+        </Box>
       </Box>
     )
   })

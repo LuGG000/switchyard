@@ -62,7 +62,7 @@ test('the pane lists the accounts and offers to continue in the other one', asyn
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface, component: 'Pane', props: PANE, requestId: 'accounts' })
     expect(await ui.find({ type: 'Text', text: /main/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /5h 20%/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /20%/ })).toBeDefined()
     expect(await ui.find({ key: 'switch-zweit' })).toBeDefined()
     expect(await ui.find({ key: 'switch-main' })).toBeUndefined()
     await ui.unmount()
