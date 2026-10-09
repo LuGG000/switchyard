@@ -118,3 +118,31 @@ A capture script logged only the JSON structure and the `rate_limits` numbers.
 - The command is called at startup and after assistant responses (four calls in
   about two minutes with two prompts); no calls were observed while idle.
   The values are therefore as fresh as the last turn.
+
+## Update: interactive failover on Windows (claude 2.1.295, same Pro account in two profiles)
+
+Tested with `switchyard run -p main -- --model haiku` in an empty temp directory.
+The limit was simulated by writing a `switch_request` into `state.json` while the
+TUI was running; no real limit was hit.
+
+### (c) Ending an interactive claude: partly verified (Windows)
+
+- The launcher ended claude (`Process.Kill`, Windows has no clean signal for a
+  console process that does not also reach switchyard), asked in the terminal,
+  and started claude in the other profile with `--resume <session_id>`. The
+  second profile answered with a word from the first profile's conversation, so
+  the session stayed consistent and resumable.
+- A killed claude leaves the console in its raw input mode: Enter then sends
+  only `\r` and the next prompt never sees a line. The launcher now saves the
+  console input and output modes before starting claude and restores them after
+  it exits. With that, the question accepts input.
+- Still open: Unix (SIGTERM, then kill) was not tried with a real claude, and
+  only the simulated request was used, so the real StopFailure hook input
+  (`session_id`) is unchecked.
+
+### Headless output of a normal run
+
+- `rate_limit_event` carries `rate_limit_info` with `status` (`allowed`),
+  `resetsAt`, `rateLimitType`, `overageStatus`, `overageDisabledReason`,
+  `isUsingOverage` and `unifiedWindows` (`five_hour`, `seven_day`), which is the
+  shape `internal/detector` parses. No false positive on a normal run.

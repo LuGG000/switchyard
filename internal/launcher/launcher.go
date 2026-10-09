@@ -39,6 +39,7 @@ type Launcher struct {
 // foreground process group, and switchyard must outlive claude to report its
 // exit code.
 func (l *Launcher) Run(ctx context.Context, p profiles.Profile, args []string) (int, error) {
+	defer saveTerminal()()
 	cmd := exec.Command(l.Claude, args...)
 	cmd.Env = claudeenv.ForProfile(l.Environ, p.Dir)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = l.Stdin, l.Stdout, l.Stderr
