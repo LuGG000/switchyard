@@ -156,12 +156,15 @@ export const register: Register = on => {
       <Button key={key} label={label} onPress={() => update($, page, () => to)} />
     )
     const refreshButton = <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+    // The engine's own close mark is small; this one is a full button.
+    const closeButton = <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
 
     if (current?.kind !== 'ok' || hint) {
       return (
         <Box flexDirection="column" {...fill}>
           {dim(hint ?? '')}
           {refreshButton}
+          {closeButton}
         </Box>
       )
     }
@@ -206,6 +209,7 @@ export const register: Register = on => {
           <Box gap={1}>
             <Text bold color={colors.text}>Style</Text>
             {toPage('back', 'Back', 'main')}
+            {closeButton}
           </Box>
           <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
             <Text bold color={colors.text}>Palette</Text>
@@ -264,6 +268,7 @@ export const register: Register = on => {
           <Text bold color={colors.text}>switchyard</Text>
           {toPage('to-style', 'Style', 'style')}
           {refreshButton}
+          {closeButton}
         </Box>
         {settings && (
           <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>

@@ -9,7 +9,8 @@ One command, `/switchyard`, opens a pane with two pages:
   or ask me; conversation: take it along or start new; the current choice is
   ticked) and a card per account with its usage bars, reset time and buttons to
   continue the conversation there or to start a new one. The buttons **Style**
-  and **Refresh** are at the top.
+  and **Refresh** are at the top, and a **Close** button next to them (the small close
+  mark in the corner is drawn by Claude Code and cannot be resized by a mod).
 - **Style:** palettes (theme, dark, light), a preview of the usage colors and a picker for
   every color (theme or a common color name), plus a field for any other color (type
   the slot and the color, for example `background #1e1e1e`). **Back** returns to the

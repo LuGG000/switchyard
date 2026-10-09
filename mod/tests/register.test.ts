@@ -245,3 +245,21 @@ test('a color can be picked, typed in, or cleared on the style page', async ($, 
   expect(calls.length).toBe(before)
   await ui.unmount()
 })
+
+test('every page has a Close button that closes the pane', async ($, on) => {
+  const closed: string[] = []
+  on('ui.close', (_$, e) => {
+    closed.push(e.id)
+
+    return { value: undefined }
+  })
+  world(on, withConfig)
+
+  for (const page of ['', 'style']) {
+    await runCommand($, 'switchyard', page)
+    const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+    await ui.press({ key: 'close' })
+    await ui.unmount()
+  }
+  expect(closed).toEqual(['switchyard', 'switchyard'])
+})
