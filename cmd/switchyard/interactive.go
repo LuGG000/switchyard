@@ -23,6 +23,7 @@ const (
 // profile at a limit, according to the config. A non-zero exit of claude becomes
 // an exitError.
 func runInteractive(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p profiles.Profile, args []string) error {
+	refreshUpdateCache(cmd.Context())
 	cfg, err := loadConfig()
 	if err != nil {
 		return err

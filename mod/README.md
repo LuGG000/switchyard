@@ -11,6 +11,8 @@ One command, `/switchyard`, opens a pane with two pages:
   continue the conversation there or to start a new one. The buttons **Style**
   and **Refresh** are at the top, and a **Close** button next to them (the small close
   mark in the corner is drawn by Claude Code and cannot be resized by a mod).
+- **Update:** when a newer switchyard release exists the overview shows an **Update available** block
+  with an **Update now** button. It installs in the background; your claude session keeps running.
 - **Style:** palettes (theme, dark, light), a preview of the usage colors and an editor for
   every color: click the color to change, then a new value (`default` or a common color name,
   shown with a swatch, the current one ticked; all of it works with the mouse), plus a field
@@ -25,6 +27,7 @@ For the keyboard the command takes arguments:
 /switchyard style                            the pane on the style page
 /switchyard switch <account> [resume|fresh]  continue in another account
 /switchyard mode [auto|ask]                  show or set what happens at a limit
+/switchyard update                           install a newer switchyard release
 ```
 
 The line under the prompt comes from the statusLine that `switchyard run`

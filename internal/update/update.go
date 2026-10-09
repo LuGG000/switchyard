@@ -180,3 +180,10 @@ func parse(version string) ([3]int, bool) {
 	}
 	return out, true
 }
+
+// Cached returns the answer of the last lookup without asking GitHub, so it is
+// cheap enough for hooks and `status --json`. ok is false if nothing is cached.
+func (c *Checker) Cached() (Release, bool) {
+	stored, err := c.read()
+	return stored.Release, err == nil && stored.Version != ""
+}

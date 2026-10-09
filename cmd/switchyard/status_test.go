@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/LuGG000/switchyard/internal/config"
 	"github.com/LuGG000/switchyard/internal/profiles"
 	"github.com/LuGG000/switchyard/internal/state"
 )
@@ -70,5 +72,38 @@ func TestBuildStatusWithoutProfilesIsEmptyList(t *testing.T) {
 	}
 	if err := json.Unmarshal(data, &raw); err != nil || raw.Profiles == nil {
 		t.Errorf("profiles must encode as [], got %s", data)
+	}
+}
+
+func TestPendingUpdateComesFromTheCache(t *testing.T) {
+	t.Setenv("SWITCHYARD_DATA_DIR", t.TempDir())
+	t.Setenv("SWITCHYARD_CONFIG_DIR", t.TempDir())
+	old := version
+	version = "0.1.0"
+	t.Cleanup(func() { version = old })
+
+	if got := pendingUpdate(); got != nil {
+		t.Fatalf("nothing cached, got %+v", got)
+	}
+	dir, _ := config.DataDir()
+	cache := `{"checked_at":"2026-10-10T10:00:00Z","version":"0.2.0","url":"https://example.test/v0.2.0"}`
+	if err := os.WriteFile(filepath.Join(dir, "update-check.json"), []byte(cache), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := pendingUpdate(); got == nil || got.Version != "0.2.0" || got.URL != "https://example.test/v0.2.0" {
+		t.Fatalf("pendingUpdate = %+v", got)
+	}
+
+	cache = `{"checked_at":"2026-10-10T10:00:00Z","version":"0.1.0","url":"u"}`
+	if err := os.WriteFile(filepath.Join(dir, "update-check.json"), []byte(cache), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := pendingUpdate(); got != nil {
+		t.Fatalf("same version is not an update, got %+v", got)
+	}
+
+	t.Setenv(noUpdateCheckEnv, "1")
+	if got := pendingUpdate(); got != nil {
+		t.Fatalf("opt-out must hide the update, got %+v", got)
 	}
 }

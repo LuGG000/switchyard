@@ -301,3 +301,42 @@ test('the active account is green by default', async ($, on) => {
   expect(JSON.stringify(await ui.drawn())).toContain('"borderColor":"green"')
   await ui.unmount()
 })
+
+const WITH_UPDATE = JSON.stringify({ ...JSON.parse(STATUS), update: { version: '0.2.0', url: 'https://example.test/v0.2.0' } })
+
+test('a newer release is offered in the pane and installed in the background', async ($, on) => {
+  let installed = false
+  const calls = world(on, argv => {
+    if (argv[1] === 'update') {
+      installed = true
+
+      return { exitCode: 0, stdout: 'Updated switchyard 0.1.0 to 0.2.0.\n', stderr: '' }
+    }
+
+    return { exitCode: 0, stdout: installed ? STATUS : WITH_UPDATE, stderr: '' }
+  })
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  expect(await ui.find({ type: 'Text', text: /Update available: switchyard 0\.2\.0/ })).toBeDefined()
+  await ui.press({ key: 'update-install' })
+  expect(calls.find(argv => argv[1] === 'update')).toEqual(['switchyard', 'update', '--install'])
+  expect(await ui.find({ key: 'update-install' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('without a newer release the pane has no update button', async ($, on) => {
+  world(on, () => ({ exitCode: 0, stdout: STATUS, stderr: '' }))
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  expect(await ui.find({ key: 'update-install' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('/switchyard update installs the release, or says it is up to date', async ($, on) => {
+  const calls = world(on, argv => ({ exitCode: 0, stdout: argv[1] === 'status' ? WITH_UPDATE : 'ok\n', stderr: '' }))
+  const result = await runCommand($, 'switchyard', 'update')
+  expect(calls.some(argv => argv[1] === 'update' && argv[2] === '--install')).toBe(true)
+  expect(JSON.stringify(result)).toMatch(/0\.2\.0/)
+})

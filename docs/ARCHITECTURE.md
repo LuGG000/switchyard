@@ -177,11 +177,26 @@ Consumers must check `schema` first.
   archives for Linux and Windows (amd64, arm64), `checksums.txt` and release notes grouped
   from the Conventional Commit titles. The version is injected with `-X main.version`; a
   binary built by `go install` reports its module version instead.
-- Users learn about a release in three ways: GitHub's "Watch > Custom > Releases", the hint
-  `internal/update` prints after `status`, `list` and `doctor` (the latest release is read
-  from the public GitHub API, cached in `update-check.json` in the data dir for 24 hours, a
-  failed lookup is cached too, and the lookup times out after 2 seconds), and
-  `switchyard update`, which checks right away. Nothing is downloaded or replaced:
-  switchyard never rewrites its own binary. The hint is limited to a terminal on stderr, so
-  scripts, `--json` output, hooks and the mod are not affected, and it can be turned off
-  with `update_check = false`.
+- `internal/update` reads the latest release from the public GitHub API and caches it in
+  `update-check.json` in the data dir for 24 hours (a failed lookup is cached too; the lookup
+  times out after 2 seconds). It is read in a few places:
+  `switchyard run` / `switch` refresh the cache before claude starts (no output),
+  `status`, `list` and `doctor` print a one-line hint on a terminal, `status --json` carries
+  `update: {version, url}` (read from the cache, no network), and the status line hook appends
+  `update X available` to its summary. Hooks never use the network. It is off with
+  `update_check = false` or `SWITCHYARD_NO_UPDATE_CHECK=1`.
+- `switchyard update --install` downloads the archive named `switchyard_<ver>_<os>_<arch>`,
+  verifies its sha256 against `checksums.txt` of the same release (integrity, not authenticity;
+  signing is a phase 6 topic), extracts the binary and replaces the running file: on Windows the
+  running exe is renamed to `switchyard.exe.old` (verified: a running exe can be renamed but not
+  overwritten), elsewhere the new file is renamed over it. `.old` is removed by the next
+  `update`. A development build is never replaced.
+- A running session does not need a restart: claude's hooks start `switchyard hook …` anew on
+  every call, so they use the new binary at once; the running launcher keeps the old code in
+  memory until `switchyard run` is started again. This relies on `state.json` and `config.toml`
+  staying compatible (a newer `state.json` schema is refused by an older binary, see
+  `state.SchemaVersion`); a release that breaks this must say so in its notes.
+- The mod shows the update in its pane (`update` in the snapshot, **Update now** button, or
+  `/switchyard update`) and runs `switchyard update --install` as a background process; it does
+  not touch the claude session. The mod itself is a plugin and is updated with
+  `claude plugin update switchyard-mod@switchyard`.

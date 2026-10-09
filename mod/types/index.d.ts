@@ -31,8 +31,11 @@ export type Settings = {
 }
 
 /** What the mod knows about switchyard, from `switchyard status --json` and `config --json`. */
+/** A newer switchyard release, from `switchyard status --json`. */
+export type UpdateInfo = { version: string; url: string }
+
 export type Snapshot =
-  | { kind: 'ok'; active: string; profiles: ProfileStatus[]; settings: Settings | null }
+  | { kind: 'ok'; active: string; profiles: ProfileStatus[]; settings: Settings | null; update: UpdateInfo | null }
   /** The command is missing from PATH or failed. */
   | { kind: 'unavailable'; reason: string }
   /** The command reports a schema this mod does not read. */

@@ -1,4 +1,4 @@
-import type { Colors, Page, ProfileStatus, Settings, Snapshot } from '../types'
+import type { Colors, Page, ProfileStatus, Settings, Snapshot, UpdateInfo } from '../types'
 
 /** The `status --json` schema this mod reads. */
 export const SUPPORTED_SCHEMA = 1
@@ -52,7 +52,13 @@ export function parseStatus(stdout: string): Snapshot {
     ? report.profiles.map(profile).filter((p): p is ProfileStatus => p !== null)
     : []
 
-  return { kind: 'ok', active: typeof report.active === 'string' ? report.active : '', profiles, settings: null }
+  return {
+    kind: 'ok',
+    active: typeof report.active === 'string' ? report.active : '',
+    profiles,
+    settings: null,
+    update: parseUpdate(report.update),
+  }
 }
 
 /** Whether a cooldown still holds at `now` (milliseconds since the epoch). */
@@ -172,12 +178,14 @@ export type Command =
   | { kind: 'switch'; name: string; flag?: '--resume' | '--fresh' }
   /** `mode: null` shows the current setting. */
   | { kind: 'mode'; mode: 'auto' | 'ask' | null }
+  | { kind: 'update' }
   | { kind: 'help' }
 
 export const USAGE = [
   'Usage: /switchyard [style]',
   '       /switchyard switch <account> [resume|fresh]',
   '       /switchyard mode [auto|ask]',
+  '       /switchyard update',
 ].join('\n')
 
 /** Reads the arguments of `/switchyard`; anything it does not know is help. */
@@ -189,6 +197,8 @@ export function parseCommand(args: string): Command {
       return { kind: 'open', page: 'main' }
     case 'style':
       return rest.length === 0 ? { kind: 'open', page: 'style' } : { kind: 'help' }
+    case 'update':
+      return rest.length === 0 ? { kind: 'update' } : { kind: 'help' }
     case 'mode':
       if (rest.length === 0) {
         return { kind: 'mode', mode: null }
@@ -246,4 +256,11 @@ export function parseColorEntry(text: string, chosen: (typeof COLOR_SLOTS)[numbe
   const value = CLEARS.includes(color.toLowerCase()) ? '' : /^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color
 
   return { key: slot?.key ?? chosen, value }
+}
+
+/** A newer release from `status --json`; null when there is none or the field is odd. */
+function parseUpdate(value: unknown): UpdateInfo | null {
+  return isRecord(value) && typeof value.version === 'string' && typeof value.url === 'string'
+    ? { version: value.version, url: value.url }
+    : null
 }

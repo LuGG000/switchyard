@@ -298,3 +298,12 @@ func TestStatuslineNamesTheFailoverMode(t *testing.T) {
 		t.Errorf("status line = %q, want %q", got, want)
 	}
 }
+
+func TestSummaryNamesANewerRelease(t *testing.T) {
+	if got, want := summary("main", nil, nil, "ask", "0.2.0"), "main · on limit: ask · update 0.2.0 available"; got != want {
+		t.Errorf("summary = %q, want %q", got, want)
+	}
+	if got, want := summary("main", nil, nil, "ask", ""), "main · on limit: ask"; got != want {
+		t.Errorf("summary without update = %q, want %q", got, want)
+	}
+}

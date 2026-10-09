@@ -21,6 +21,8 @@ type statusReport struct {
 	Version  string          `json:"version"`
 	Active   string          `json:"active"`
 	Profiles []profileStatus `json:"profiles"`
+	// Update is set when a newer release is known from the last check.
+	Update *updateInfo `json:"update"`
 }
 
 type profileStatus struct {
@@ -79,7 +81,7 @@ func buildStatus(m *profiles.Manager, store *state.Store) (statusReport, error) 
 	if err != nil {
 		return statusReport{}, err
 	}
-	report := statusReport{Schema: statusSchema, Version: currentVersion(), Active: st.Active, Profiles: []profileStatus{}}
+	report := statusReport{Schema: statusSchema, Version: currentVersion(), Active: st.Active, Profiles: []profileStatus{}, Update: pendingUpdate()}
 	for _, p := range list {
 		entry := st.Profiles[p.Name]
 		report.Profiles = append(report.Profiles, profileStatus{
@@ -138,4 +140,18 @@ func formatUsage(u *usageInfo) string {
 		return "-"
 	}
 	return fmt.Sprintf("%.0f%%", u.UsedPercent)
+}
+
+// updateInfo is a newer release than the running binary.
+type updateInfo struct {
+	Version string `json:"version"`
+	URL     string `json:"url"`
+}
+
+func pendingUpdate() *updateInfo {
+	release, ok := newerRelease()
+	if !ok {
+		return nil
+	}
+	return &updateInfo{Version: release.Version, URL: release.URL}
 }

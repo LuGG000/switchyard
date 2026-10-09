@@ -134,3 +134,23 @@ test('entries that are neither a color nor a slot with a color are refused', asy
     expect(parseColorEntry(bad, 'color_text')).toBeNull()
   }
 })
+
+test('a newer release is read from the status, anything odd is no update', async () => {
+  const withUpdate = (update: unknown) => parseStatus(JSON.stringify({ schema: 1, active: '', profiles: [], update }))
+  expect(withUpdate({ version: '0.2.0', url: 'https://example.test/v0.2.0' })).toEqual({
+    kind: 'ok',
+    active: '',
+    profiles: [],
+    settings: null,
+    update: { version: '0.2.0', url: 'https://example.test/v0.2.0' },
+  })
+  for (const odd of [null, undefined, 'x', { version: 2 }, { version: '0.2.0' }]) {
+    const snapshot = withUpdate(odd)
+    expect(snapshot.kind === 'ok' ? snapshot.update : 'not ok').toBe(null)
+  }
+})
+
+test('/switchyard update takes no argument', async () => {
+  expect(parseCommand('update')).toEqual({ kind: 'update' })
+  expect(parseCommand('update now')).toEqual({ kind: 'help' })
+})

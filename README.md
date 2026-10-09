@@ -55,6 +55,7 @@ switchyard config colors dark         # colors of the mod pane: default, dark or
 switchyard mod install                # install the optional Claude Code mod
 switchyard login work1                # log a profile in again
 switchyard update                     # check for a newer release
+switchyard update --install           # download and install it
 switchyard repair                     # re-create the shared links
 switchyard doctor                     # check logins, settings and links
 ```
@@ -82,12 +83,27 @@ one setting and a running session picks it up at its next limit.
 Releases are tagged `vX.Y.Z` and listed on the [releases page](https://github.com/LuGG000/switchyard/releases)
 with notes on what changed. To hear about them, use *Watch > Custom > Releases* on GitHub.
 
-switchyard also tells you: after `status`, `list` and `doctor` it prints a one-line hint
-when a newer release exists (checked at most once a day, only in a terminal), and
-`switchyard update` checks right away. It never downloads or replaces itself; update with
-the same command you installed with (`go install …@latest` or a new archive). Turn the hint
-off with `switchyard config set update_check false` or `SWITCHYARD_NO_UPDATE_CHECK=1`. The
-check only asks GitHub for the latest release and sends nothing about you.
+switchyard also tells you, with or without the mod:
+
+- `switchyard run` looks for a newer release once a day. When there is one, the status line
+  under the prompt ends with `update 0.2.0 available`, and `status`, `list` and `doctor`
+  print a hint.
+- With the mod, `/switchyard` shows an **Update available** block with an **Update now** button
+  (or type `/switchyard update`).
+- `switchyard update` checks right away; `switchyard update --install` downloads the archive
+  for your system, checks it against the published `checksums.txt` and replaces the binary.
+
+Installing does not interrupt your work. It runs on its own (the mod starts it in the
+background, no second terminal needed), and a running claude session keeps going: its hooks
+call `switchyard` again and pick up the new version, the old binary stays valid while it
+runs (Windows renames it aside). The `switchyard run` launcher process itself keeps the old
+code until you start it again; the settings and state files stay compatible within a
+release line, and the release notes say when they do not. The mod is a separate plugin:
+update it with `claude plugin update switchyard-mod@switchyard` (restart claude to apply).
+
+Turn the checks off with `switchyard config set update_check false` or
+`SWITCHYARD_NO_UPDATE_CHECK=1`. A check only asks GitHub for the latest release and sends
+nothing about you.
 
 ## Optional mod
 

@@ -30,9 +30,9 @@ const slotAtom = atom({ plugin: 'switchyard-mod', key: 'slot' } as const, 'backg
 type Engine = EngineInterface
 
 /** Runs `switchyard` with `argv`; the text of a refusal when it fails, undefined when it worked. */
-async function run($: Engine, argv: string[]): Promise<{ stdout: string } | { error: string }> {
+async function run($: Engine, argv: string[], timeoutMs = 10_000): Promise<{ stdout: string } | { error: string }> {
   try {
-    const result = await $.process.run(['switchyard', ...argv], { timeoutMs: 10_000 })
+    const result = await $.process.run(['switchyard', ...argv], { timeoutMs })
 
     return result.exitCode === 0
       ? { stdout: result.stdout }
@@ -89,6 +89,21 @@ async function handoff($: Engine, name: string, flag?: '--resume' | '--fresh'): 
   return `Handoff to ${name} requested. If claude was started with switchyard run, it restarts in ${name}.`
 }
 
+/**
+ * Replaces the switchyard binary with the latest release. It runs in the background:
+ * claude and this session stay open, and the hooks use the new binary from the next call.
+ */
+async function installUpdate($: Engine, version: string): Promise<string> {
+  $.ui.toast(`Updating switchyard to ${version} ...`)
+  const result = await run($, ['update', '--install'], 120_000)
+  if ('error' in result) {
+    return result.error
+  }
+  await refresh($)
+
+  return `switchyard ${version} installed. This session keeps running; restart switchyard run to use it for the launcher too.`
+}
+
 async function open($: Engine, to: Page): Promise<void> {
   await update($, page, () => to)
   await refresh($)
@@ -121,6 +136,13 @@ export const register: Register = on => {
         return { text: command.page === 'style' ? 'Style page opened.' : 'switchyard pane opened.' }
       case 'switch':
         return { text: await handoff($, command.name, command.flag) }
+      case 'update': {
+        await refresh($)
+        const current = await read($, snapshot)
+        const pending = current?.kind === 'ok' ? current.update : null
+
+        return { text: pending ? await installUpdate($, pending.version) : 'switchyard is up to date.' }
+      }
       case 'mode': {
         if (command.mode !== null) {
           return { text: await setSetting($, 'mode', command.mode) }
@@ -172,6 +194,8 @@ export const register: Register = on => {
         </Box>
       )
     }
+
+    const pending = current.update
 
     const bar = (label: string, percent: number, extra: string) => (
       <Box key={label}>
@@ -280,6 +304,20 @@ export const register: Register = on => {
           {refreshButton}
           {closeButton}
         </Box>
+        {pending && (
+          <Box flexDirection="column" borderStyle="round" borderColor={colors.medium} paddingX={1}>
+            <Text bold color={colors.medium}>Update available: switchyard {pending.version}</Text>
+            {dim('Installs in the background. This session keeps running.')}
+            <Box gap={1}>
+              <Button
+                key="update-install"
+                label="Update now"
+                variant="primary"
+                onPress={async () => $.ui.toast(await installUpdate($, pending.version))}
+              />
+            </Box>
+          </Box>
+        )}
         {settings && (
           <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
             <Text bold color={colors.text}>Failover</Text>

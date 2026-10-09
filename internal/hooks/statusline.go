@@ -29,6 +29,8 @@ type Handler struct {
 	// Threshold is the five-hour usage percentage that asks the launcher to
 	// switch profiles; zero disables it.
 	Threshold int
+	// Update is the version of a newer release, shown in the summary; empty for none.
+	Update string
 	// Now returns the current time.
 	Now func() time.Time
 }
@@ -84,7 +86,7 @@ func (h *Handler) Statusline(in io.Reader, out io.Writer) error {
 		_, err := io.WriteString(out, text)
 		return err
 	}
-	_, err = fmt.Fprintln(out, summary(h.Profile, five, seven, h.Mode))
+	_, err = fmt.Fprintln(out, summary(h.Profile, five, seven, h.Mode, h.Update))
 	return err
 }
 
@@ -113,7 +115,7 @@ func usage(w *window, now time.Time) *state.Usage {
 	return &state.Usage{UsedPercent: w.UsedPercentage, ResetsAt: time.Unix(w.ResetsAt, 0).UTC(), UpdatedAt: now.UTC()}
 }
 
-func summary(profile string, five, seven *state.Usage, mode string) string {
+func summary(profile string, five, seven *state.Usage, mode, update string) string {
 	parts := []string{profile}
 	if five != nil {
 		parts = append(parts, fmt.Sprintf("5h %.0f%%", five.UsedPercent))
@@ -123,6 +125,9 @@ func summary(profile string, five, seven *state.Usage, mode string) string {
 	}
 	if mode != "" {
 		parts = append(parts, "on limit: "+mode)
+	}
+	if update != "" {
+		parts = append(parts, "update "+update+" available")
 	}
 	return strings.Join(parts, " · ")
 }
