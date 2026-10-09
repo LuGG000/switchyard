@@ -23,7 +23,7 @@ decisions taken while building it. Where the two differ, this file wins.
 | `internal/doctor` | read-only health checks |
 | `fakeclaude` | test double for the `claude` executable (see `docs/DEVELOPMENT.md`) |
 
-Not yet written: `internal/platform` and the mod (phase 5). There is no `internal/ipc`:
+Not yet written: `internal/platform`. There is no `internal/ipc`:
 the hooks reach the launcher through the state file (see Decisions).
 
 ## Files and directories
@@ -145,3 +145,15 @@ Consumers must check `schema` first.
   cooldown for the old profile; an unknown target ends the run with an error. It
   only has an effect while claude runs under `run` or `switch`, and the command
   cannot tell whether that is the case.
+- **Mod.** `mod/` is a Claude Code plugin of function hooks (TypeScript) that
+  talks to the core only through the CLI: `status --json` (the mod accepts schema
+  1 and treats anything else as incompatible) and `handoff`. It pins a status
+  line, adds `/accounts` (a pane with buttons) and `/switch`, and refreshes every
+  30 s and after each turn. A missing or failing `switchyard` leaves the status
+  line empty and is explained in the pane. The marketplace file is
+  `.claude-plugin/marketplace.json` at the repo root (`source: ./mod`);
+  `switchyard mod install` adds that marketplace and installs the plugin. The
+  mod cannot end claude or swap credentials, so a switch is always a `handoff`
+  that the launcher carries out. Buttons for the `ask` question are not built:
+  the launcher ends claude as soon as a limit is reported, so there is nothing
+  left to press; that needs a decision channel (follow-up issue).

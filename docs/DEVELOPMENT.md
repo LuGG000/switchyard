@@ -69,3 +69,17 @@ Never log text values such as paths, session content or account data.
 They need a second independent Pro account (expected around 2026-10-24) or a
 Windows/WSL machine; the issue bodies hold the acceptance criteria. Record the
 results in `docs/SPIKE.md`.
+
+## The mod
+
+```
+claude plugin validate mod            # manifest and hooks module
+claude plugin validate .              # marketplace file
+claude plugin test mod                # tests/*.test.ts with a mocked switchyard
+tsc -p mod                            # needs the generated types, see mod/README.md
+```
+
+`claude --plugin-dir mod` loads the mod from the checkout for one session. To try
+`switchyard mod install` without touching your Claude settings, point
+`CLAUDE_CONFIG_DIR` at an empty temp directory and use
+`--source <path to this repository>`.

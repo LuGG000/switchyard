@@ -1,0 +1,127 @@
+import type { ProfileStatus, Snapshot } from '../types'
+
+/** The `status --json` schema this mod reads. */
+export const SUPPORTED_SCHEMA = 1
+
+type Raw = Record<string, unknown>
+
+const isRecord = (value: unknown): value is Raw =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+function usage(value: unknown): ProfileStatus['five_hour'] {
+  if (!isRecord(value) || typeof value.used_percent !== 'number') {
+    return null
+  }
+
+  return {
+    used_percent: value.used_percent,
+    resets_at: typeof value.resets_at === 'string' ? value.resets_at : '',
+    updated_at: typeof value.updated_at === 'string' ? value.updated_at : '',
+  }
+}
+
+function profile(value: unknown): ProfileStatus | null {
+  if (!isRecord(value) || typeof value.name !== 'string') {
+    return null
+  }
+
+  return {
+    name: value.name,
+    active: value.active === true,
+    cooldown_until: typeof value.cooldown_until === 'string' ? value.cooldown_until : null,
+    five_hour: usage(value.five_hour),
+    seven_day: usage(value.seven_day),
+  }
+}
+
+/** Reads the output of `switchyard status --json`; anything else is a snapshot that says why. */
+export function parseStatus(stdout: string): Snapshot {
+  let report: unknown
+  try {
+    report = JSON.parse(stdout)
+  } catch {
+    return { kind: 'unavailable', reason: 'switchyard status did not print JSON' }
+  }
+  if (!isRecord(report)) {
+    return { kind: 'unavailable', reason: 'switchyard status did not print an object' }
+  }
+  if (report.schema !== SUPPORTED_SCHEMA) {
+    return { kind: 'incompatible', schema: typeof report.schema === 'number' ? report.schema : null }
+  }
+  const profiles = Array.isArray(report.profiles)
+    ? report.profiles.map(profile).filter((p): p is ProfileStatus => p !== null)
+    : []
+
+  return { kind: 'ok', active: typeof report.active === 'string' ? report.active : '', profiles }
+}
+
+/** Whether a cooldown still holds at `now` (milliseconds since the epoch). */
+export function isCoolingDown(p: ProfileStatus, now: number): boolean {
+  return p.cooldown_until !== null && Date.parse(p.cooldown_until) > now
+}
+
+function clock(iso: string): string {
+  const date = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** The usage of one profile as `5h 20% · 7d 18%`, with the end of a cooldown. */
+export function describeProfile(p: ProfileStatus, now: number): string {
+  const parts: string[] = []
+  if (p.five_hour) {
+    parts.push(`5h ${Math.round(p.five_hour.used_percent)}%`)
+  }
+  if (p.seven_day) {
+    parts.push(`7d ${Math.round(p.seven_day.used_percent)}%`)
+  }
+  if (p.cooldown_until !== null && isCoolingDown(p, now)) {
+    parts.push(`limit until ${clock(p.cooldown_until)}`)
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : 'no usage yet'
+}
+
+/** The pinned status line, or undefined while switchyard has nothing to show. */
+export function statusLine(snapshot: Snapshot | null, now: number): string | undefined {
+  if (snapshot?.kind !== 'ok') {
+    return undefined
+  }
+  const active = snapshot.profiles.find(p => p.name === snapshot.active)
+
+  return active ? `switchyard: ${active.name} · ${describeProfile(active, now)}` : undefined
+}
+
+/** The one line the pane shows when switchyard cannot be read. */
+export function problem(snapshot: Snapshot | null): string | undefined {
+  switch (snapshot?.kind) {
+    case undefined:
+      return 'Reading switchyard ...'
+    case 'unavailable':
+      return `switchyard is not available (${snapshot.reason}). Install it and put it in PATH.`
+    case 'incompatible':
+      return `switchyard reports status schema ${snapshot.schema ?? 'unknown'}; this mod reads schema ${SUPPORTED_SCHEMA}. Update switchyard and the mod.`
+    default:
+      return undefined
+  }
+}
+
+/** Splits `/switch` arguments into the profile and the carry choice. */
+export function parseSwitchArgs(args: string): { name: string; flag?: '--resume' | '--fresh' } | null {
+  const [name, option, ...rest] = args.trim().split(/\s+/)
+  if (!name || rest.length > 0) {
+    return null
+  }
+  if (option === undefined) {
+    return { name }
+  }
+  if (option === 'fresh' || option === '--fresh') {
+    return { name, flag: '--fresh' }
+  }
+  if (option === 'resume' || option === '--resume') {
+    return { name, flag: '--resume' }
+  }
+
+  return null
+}

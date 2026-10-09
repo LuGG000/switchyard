@@ -1,0 +1,7 @@
+{
+  "name": "switchyard-mod",
+  "version": "0.1.0",
+  "description": "Shows switchyard account usage and switches the running session to another account.",
+  "author": { "name": "LuGG000" },
+  "types": "./types/index.d.ts"
+}

@@ -3,7 +3,8 @@
 Open-source account switcher for Claude Code subscription logins (Pro/Max).
 
 **Status: early development.** Profiles, manual switching and `run` work against
-`claude`; limit detection and automatic failover are not implemented yet. See
+`claude`, and a limit moves the session to the next profile (headless and
+interactive). Real limits have not been observed yet. See
 [docs/PLAN.md](docs/PLAN.md) and [docs/STATUS.md](docs/STATUS.md).
 
 ## Usage
@@ -14,9 +15,12 @@ switchyard add work1                  # create a profile and log it in
 switchyard list                       # profiles and their login state
 switchyard status [--json]            # active profile, last use, cooldowns
 switchyard run -- --model haiku       # run claude with the active profile
+switchyard run -- -p "prompt"         # headless run that fails over at a limit
 switchyard switch work2 --resume      # switch and continue the current conversation
 switchyard switch work2 --fresh       # switch and start a new conversation
 switchyard switch work2 --no-launch   # only change the active profile
+switchyard handoff work2              # ask the running session to continue in work2
+switchyard mod install                # install the optional Claude Code mod
 switchyard repair                     # re-create the shared links
 switchyard doctor                     # check logins, settings and links
 ```

@@ -1,0 +1,12 @@
+{
+  "name": "switchyard",
+  "description": "Account switcher with limit failover for Claude Code subscription logins.",
+  "owner": { "name": "LuGG000" },
+  "plugins": [
+    {
+      "name": "switchyard-mod",
+      "source": "./mod",
+      "description": "Shows switchyard account usage and switches the running session to another account."
+    }
+  ]
+}
