@@ -34,8 +34,23 @@ go install github.com/LuGG000/switchyard/cmd/switchyard@latest
 Or download the archive for Linux, macOS or Windows (amd64, arm64) from the
 [releases page](https://github.com/LuGG000/switchyard/releases), unpack it and put
 `switchyard` on your `PATH`. Linux releases also ship `.deb` and `.rpm` packages, and
-`packaging/aur/PKGBUILD` builds the Arch package from source.
+`packaging/aur/PKGBUILD` (from source) and `packaging/aur-bin/PKGBUILD` (prebuilt) are the Arch recipes.
 `claude` must be installed and on the `PATH`.
+
+### Verify a download
+
+Each release has `checksums.txt` with the SHA-256 of every file and a keyless
+[cosign](https://github.com/sigstore/cosign) signature of it, made by the release workflow.
+
+```
+cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/LuGG000/switchyard/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+sha256sum --check --ignore-missing checksums.txt
+```
+
+`switchyard update --install` checks the archive against `checksums.txt` of the same release
+but does not verify the signature itself.
 
 ## Usage
 
