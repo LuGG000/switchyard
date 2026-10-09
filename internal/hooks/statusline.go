@@ -53,7 +53,9 @@ func (h *Handler) Statusline(in io.Reader, out io.Writer) error {
 	_ = json.Unmarshal(raw, &input)
 
 	var five, seven *state.Usage
-	if rl := input.RateLimits; rl != nil {
+	if rl := input.RateLimits; rl == nil {
+		five, seven = h.lastKnownUsage()
+	} else {
 		now := h.Now()
 		five, seven = usage(rl.FiveHour, now), usage(rl.SevenDay, now)
 		_ = h.Store.Update(func(st *state.State) error {
@@ -70,6 +72,24 @@ func (h *Handler) Statusline(in io.Reader, out io.Writer) error {
 	}
 	_, err = fmt.Fprintln(out, summary(h.Profile, five, seven))
 	return err
+}
+
+// lastKnownUsage returns the stored usage of windows that have not reset yet.
+// claude sends no rate limits before the first response of a session.
+func (h *Handler) lastKnownUsage() (five, seven *state.Usage) {
+	st, err := h.Store.Read()
+	if err != nil {
+		return nil, nil
+	}
+	now := h.Now()
+	current := func(u *state.Usage) *state.Usage {
+		if u == nil || !u.ResetsAt.After(now) {
+			return nil
+		}
+		return u
+	}
+	p := st.Profiles[h.Profile]
+	return current(p.FiveHour), current(p.SevenDay)
 }
 
 func usage(w *window, now time.Time) *state.Usage {

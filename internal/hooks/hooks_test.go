@@ -115,6 +115,31 @@ func TestStatuslineWithoutRateLimitsPrintsProfileOnly(t *testing.T) {
 	}
 }
 
+func TestStatuslineWithoutRateLimitsShowsLastKnownUsage(t *testing.T) {
+	h := newHandler(t)
+	err := h.Store.Update(func(st *state.State) error {
+		st.Profiles["acc1"] = state.Profile{
+			FiveHour: &state.Usage{UsedPercent: 40, ResetsAt: now.Add(time.Hour)},
+			SevenDay: &state.Usage{UsedPercent: 90, ResetsAt: now.Add(-time.Hour)},
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := h.Statusline(strings.NewReader(`{"rate_limits":null}`), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := out.String(), "acc1 · 5h 40%\n"; got != want {
+		t.Errorf("output %q, want %q (the reset weekly window must not be shown)", got, want)
+	}
+	st, _ := h.Store.Read()
+	if st.Profiles["acc1"].FiveHour == nil || st.Profiles["acc1"].FiveHour.UsedPercent != 40 {
+		t.Error("stored usage was overwritten")
+	}
+}
+
 func TestStatuslineSurvivesGarbageInput(t *testing.T) {
 	h := newHandler(t)
 	var out bytes.Buffer
