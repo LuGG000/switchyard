@@ -17,3 +17,36 @@ archives:
 
 checksum:
   name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^docs:'
+      - '^ci:'
+      - '^chore:'
+      - '^test:'
+      - 'dependabot'
+
+release:
+  github:
+    owner: LuGG000
+    name: switchyard
+  footer: |
+    ## Update
+
+    ```
+    go install github.com/LuGG000/switchyard/cmd/switchyard@latest
+    ```
+
+    or download the archive for your system below. `switchyard update` shows whether you are current.

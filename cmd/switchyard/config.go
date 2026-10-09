@@ -20,6 +20,7 @@ type configReport struct {
 	CarryContext       bool          `json:"carry_context"`
 	Strategy           string        `json:"strategy"`
 	ProactiveThreshold int           `json:"proactive_threshold"`
+	UpdateCheck        bool          `json:"update_check"`
 	Colors             config.Colors `json:"colors"`
 }
 
@@ -32,7 +33,8 @@ func newConfigCmd() *cobra.Command {
 			"  mode                 auto switches at once, ask asks in the terminal\n" +
 			"  carry_context        continue the conversation in the next profile\n" +
 			"  strategy             sequential, most-headroom or round-robin\n" +
-			"  proactive_threshold  five-hour usage in percent that triggers a switch, 0 = off\n\n" +
+			"  proactive_threshold  five-hour usage in percent that triggers a switch, 0 = off\n" +
+			"  update_check         mention a newer release once a day (status, list, doctor)\n\n" +
 			"Change one with: switchyard config set <key> <value>. A running session picks the\n" +
 			"change up at its next limit.",
 		Args: cobra.NoArgs,
@@ -47,6 +49,7 @@ func newConfigCmd() *cobra.Command {
 				CarryContext:       cfg.CarryContext,
 				Strategy:           cfg.Strategy,
 				ProactiveThreshold: cfg.ProactiveThreshold,
+				UpdateCheck:        cfg.UpdateCheck,
 				Colors:             cfg.Palette(),
 			}
 			if asJSON {

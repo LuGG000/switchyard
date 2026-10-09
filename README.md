@@ -31,8 +31,10 @@ From source (Go 1.25 or newer):
 go install github.com/LuGG000/switchyard/cmd/switchyard@latest
 ```
 
-Prebuilt binaries for Linux and Windows will be attached to releases once
-they exist. `claude` must be installed and on the `PATH`.
+Or download the archive for Linux or Windows (amd64, arm64) from the
+[releases page](https://github.com/LuGG000/switchyard/releases), unpack it and put
+`switchyard` on your `PATH`.
+`claude` must be installed and on the `PATH`.
 
 ## Usage
 
@@ -52,6 +54,7 @@ switchyard config set mode auto       # switch at a limit without asking
 switchyard config colors dark         # colors of the mod pane: default, dark or light
 switchyard mod install                # install the optional Claude Code mod
 switchyard login work1                # log a profile in again
+switchyard update                     # check for a newer release
 switchyard repair                     # re-create the shared links
 switchyard doctor                     # check logins, settings and links
 ```
@@ -71,7 +74,20 @@ one setting and a running session picks it up at its next limit.
 | `carry_context` | `true` (default), `false` | continue the conversation in the next profile |
 | `strategy` | `sequential` (default), `most-headroom`, `round-robin` | how the next profile is chosen |
 | `proactive_threshold` | `0` (off) to `100` | five-hour usage in percent that triggers a switch |
+| `update_check` | `true` (default), `false` | mention a newer release after `status`, `list` and `doctor` |
 | `color_*` | color or empty | colors of the mod pane, see [mod/README.md](mod/README.md) |
+
+## Updates
+
+Releases are tagged `vX.Y.Z` and listed on the [releases page](https://github.com/LuGG000/switchyard/releases)
+with notes on what changed. To hear about them, use *Watch > Custom > Releases* on GitHub.
+
+switchyard also tells you: after `status`, `list` and `doctor` it prints a one-line hint
+when a newer release exists (checked at most once a day, only in a terminal), and
+`switchyard update` checks right away. It never downloads or replaces itself; update with
+the same command you installed with (`go install …@latest` or a new archive). Turn the hint
+off with `switchyard config set update_check false` or `SWITCHYARD_NO_UPDATE_CHECK=1`. The
+check only asks GitHub for the latest release and sends nothing about you.
 
 ## Optional mod
 

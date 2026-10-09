@@ -80,3 +80,10 @@ tsc -p mod                            # needs the generated types, see mod/READM
 `switchyard mod install` without touching your Claude settings, point
 `CLAUDE_CONFIG_DIR` at an empty temp directory and use
 `--source <path to this repository>`.
+
+## Releasing
+
+1. `main` is green and the changes are merged.
+2. Check the release config locally: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean` (the output in `dist/` is ignored by git).
+3. Tag and push: `git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0`. The `release` workflow builds the archives and creates the GitHub release with notes grouped by Conventional Commit type (`docs:`, `ci:`, `chore:`, `test:` are left out).
+4. Versions follow semver; while the version is below 1.0.0 minor releases may change behavior. Update hints in `switchyard` read the latest non-draft, non-prerelease release.
