@@ -1,0 +1,20 @@
+# Maintainer: LuGG000 <81622672+LuGG000@users.noreply.github.com>
+pkgname=switchyard-bin
+pkgver=0.1.2
+pkgrel=1
+pkgdesc='Account switcher with limit failover for Claude Code subscription logins (prebuilt binary)'
+arch=('x86_64' 'aarch64')
+url='https://github.com/LuGG000/switchyard'
+license=('Apache-2.0')
+provides=('switchyard')
+conflicts=('switchyard')
+source_x86_64=("$url/releases/download/v$pkgver/switchyard_${pkgver}_linux_amd64.tar.gz")
+source_aarch64=("$url/releases/download/v$pkgver/switchyard_${pkgver}_linux_arm64.tar.gz")
+sha256sums_x86_64=('5af3e8609a9bc26434140006f2ce150ca2afc1d945b029b3780fb51be959c31a')
+sha256sums_aarch64=('ad5f93410650a363c7f2db875f7ecca3d52dcac4135a93a54d4b34d5398efe5b')
+
+package() {
+  install -Dm755 switchyard "$pkgdir/usr/bin/switchyard"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 THIRD_PARTY_NOTICES.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY_NOTICES.md"
+}

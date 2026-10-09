@@ -6,6 +6,8 @@ on:
 
 permissions:
   contents: write
+  # keyless signing of the checksums with the workflow's identity
+  id-token: write
 
 jobs:
   goreleaser:
@@ -17,6 +19,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - uses: sigstore/cosign-installer@v3
       - uses: goreleaser/goreleaser-action@v7
         with:
           args: release --clean

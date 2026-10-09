@@ -65,3 +65,10 @@ nfpms:
         dst: /usr/share/doc/switchyard/LICENSE
       - src: THIRD_PARTY_NOTICES.md
         dst: /usr/share/doc/switchyard/THIRD_PARTY_NOTICES.md
+
+# checksums.txt is signed keyless with cosign (sigstore); see the README for verifying it
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: ["sign-blob", "--yes", "--bundle=${signature}", "${artifact}"]
