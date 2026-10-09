@@ -87,3 +87,34 @@ with the same account. Tests ran from an empty temp directory with `--model haik
 - (a) statusLine precedence of `--settings`, (c) clean termination of an
   interactive session, (f) statusLine JSON and frequency: need an interactive run.
 - (b) value of `status` at a real limit, (g) WSL behavior.
+
+## Update: statusLine in the interactive TUI (Linux, claude 2.1.295)
+
+Tested with a Pro profile that has its own user-level `settings.json` containing
+`statusLine` (`echo USER-LINE`), `--model haiku`, from an empty temp directory.
+A capture script logged only the JSON structure and the `rate_limits` numbers.
+
+### (a) statusLine precedence: verified
+
+- Without `--settings` the TUI shows the user's statusLine.
+- With `--settings '{"statusLine":{...}}'` the injected command replaces the
+  user's statusLine; the user's command is not run.
+- Decision: `switchyard hook statusline` runs the user's own statusLine command
+  with the same stdin and prints its output, so injecting ours does not remove
+  the user's status line.
+
+### (f) statusLine JSON and frequency: verified
+
+- The command receives a JSON object on stdin. Top-level keys: `context_window`,
+  `cost`, `cwd`, `effort`, `exceeds_200k_tokens`, `fast_mode`, `model`,
+  `output_style`, `scratchpad_dir`, `session_id`, `thinking`, `transcript_path`,
+  `version`, `workspace`.
+- `rate_limits` is `null` or absent right after start and appears once the first
+  response has arrived. Shape:
+  `rate_limits.five_hour` and `rate_limits.seven_day`, each with
+  `used_percentage` (whole number) and `resets_at` (Unix seconds).
+- `session_id` and `transcript_path` are available, which phase 4 can use to
+  resume by ID.
+- The command is called at startup and after assistant responses (four calls in
+  about two minutes with two prompts); no calls were observed while idle.
+  The values are therefore as fresh as the last turn.
