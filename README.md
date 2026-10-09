@@ -22,6 +22,7 @@ switchyard switch work2 --no-launch   # only change the active profile
 switchyard handoff work2              # ask the running session to continue in work2
 switchyard config                     # failover settings (mode auto or ask, ...)
 switchyard config set mode auto       # switch at a limit without asking
+switchyard config colors dark         # colors of the mod pane: default, dark or light
 switchyard mod install                # install the optional Claude Code mod
 switchyard repair                     # re-create the shared links
 switchyard doctor                     # check logins, settings and links

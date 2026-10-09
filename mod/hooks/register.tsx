@@ -7,6 +7,7 @@ import {
   isCoolingDown,
   parseConfig,
   parseFailoverArg,
+  PALETTES,
   parseStatus,
   parseSwitchArgs,
   problem,
@@ -70,6 +71,21 @@ async function changeSetting($: Engine, key: string, value: string): Promise<str
   return `${key} = ${value}`
 }
 
+/** Sets all pane colors to a palette of switchyard; the answer is the text to show. */
+async function changeColors($: Engine, name: string): Promise<string> {
+  try {
+    const run = await $.process.run(['switchyard', 'config', 'colors', name], { timeoutMs: 10_000 })
+    if (run.exitCode !== 0) {
+      return run.stderr.trim() || `switchyard config colors failed (exit code ${run.exitCode})`
+    }
+  } catch {
+    return 'switchyard was not found in PATH'
+  }
+  await refresh($)
+
+  return `Colors: ${name}`
+}
+
 /** Asks the launcher to continue in `name`; the answer is the text to show. */
 async function handoff($: Engine, name: string, flag?: '--resume' | '--fresh'): Promise<string> {
   const argv = ['switchyard', 'handoff', name, '--session', await $.session.id()]
@@ -88,10 +104,7 @@ async function handoff($: Engine, name: string, flag?: '--resume' | '--fresh'): 
   return `Handoff to ${name} requested. If claude was started with switchyard run, it restarts in ${name}.`
 }
 
-export const register: Register = (on, options) => {
-  const colors = palette(options)
-  const tint = (percent: number): string => ({ ok: colors.low, warn: colors.medium, high: colors.high })[usageLevel(percent)]
-
+export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'accounts',
@@ -153,6 +166,8 @@ export const register: Register = (on, options) => {
     const current = await read($, snapshot)
     const now = await $.clock.now()
     const hint = problem(current)
+    const colors = palette(current?.kind === 'ok' ? current.settings?.colors : null)
+    const tint = (percent: number): string => ({ ok: colors.low, warn: colors.medium, high: colors.high })[usageLevel(percent)]
     // A background has to fill the whole pane, not just the height of its content.
     const fill = colors.background
       ? { backgroundColor: colors.background, width: e.props.bodyColumns, minHeight: e.props.scroll.bodyRows }
@@ -206,6 +221,16 @@ export const register: Register = (on, options) => {
               <Text color={colors.text} dimColor>Conversation</Text>
               {choice('carry-on', 'take it along', settings.carry_context, 'carry_context', 'true')}
               {choice('carry-off', 'start new', !settings.carry_context, 'carry_context', 'false')}
+            </Box>
+            <Box gap={1}>
+              <Text color={colors.text} dimColor>Colors</Text>
+              {PALETTES.map(name => (
+                <Button
+                  key={`colors-${name}`}
+                  label={name === 'default' ? 'theme' : name}
+                  onPress={async () => $.ui.toast(await changeColors($, name))}
+                />
+              ))}
             </Box>
           </Box>
         )}

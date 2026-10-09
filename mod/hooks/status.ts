@@ -1,4 +1,4 @@
-import type { ProfileStatus, Settings, Snapshot } from '../types'
+import type { Colors, ProfileStatus, Settings, Snapshot } from '../types'
 
 /** The `status --json` schema this mod reads. */
 export const SUPPORTED_SCHEMA = 1
@@ -157,7 +157,7 @@ export function parseConfig(stdout: string): Settings | null {
     return null
   }
 
-  return { mode: report.mode, carry_context: report.carry_context }
+  return { mode: report.mode, carry_context: report.carry_context, colors: parseColors(report.colors) }
 }
 
 /** The settings in a sentence, for `/failover`. */
@@ -173,3 +173,21 @@ export function parseFailoverArg(args: string): 'auto' | 'ask' | '' | null {
 
   return word === '' || word === 'auto' || word === 'ask' ? word : null
 }
+
+/** The colors of the config; a missing or malformed entry is empty, which means the theme's color. */
+function parseColors(value: unknown): Colors {
+  const text = (key: string): string => (isRecord(value) && typeof value[key] === 'string' ? value[key] : '')
+
+  return {
+    background: text('background'),
+    text: text('text'),
+    low: text('low'),
+    medium: text('medium'),
+    high: text('high'),
+    border_active: text('border_active'),
+    border: text('border'),
+  }
+}
+
+/** The palettes `switchyard config colors` knows, in display order. */
+export const PALETTES = ['default', 'dark', 'light'] as const

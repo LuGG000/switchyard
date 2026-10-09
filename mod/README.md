@@ -52,18 +52,25 @@ API types into `mod/.claude-plugin/types/`. They are generated, not committed.
 
 ## Colors
 
-The pane follows your Claude theme. To change its colors, use the mod's own
-options (`/config`, the `switchyard-mod` rows, or `pluginConfigs` in your
-settings): they belong to this mod alone, the theme and other mods are not
-touched. Each takes a theme color (`success`, `warning`, `error`, `subtle`, ...),
-a color name or hex (`#1e1e1e`); empty keeps the default.
+The pane follows your Claude theme. The colors are set in switchyard, the same
+place as the other settings, so the Claude theme and other mods are not touched:
 
-| Option | Default | Colors |
+```
+switchyard config colors dark                     # a palette: default (theme), dark or light
+switchyard config set color_background '#1e1e1e'  # a single color
+switchyard config set color_background ''         # back to the theme's
+```
+
+The pane has a "Colors" row with the same palettes. A change shows the next time
+the pane refreshes. A color is a theme color (`success`, `warning`, `error`,
+`subtle`, ...), a color name or hex; empty means the theme's.
+
+| Setting | Default | Colors |
 | --- | --- | --- |
-| `background` | engine's | background of the whole pane |
-| `text` | theme | text |
-| `usageLow` / `usageMedium` / `usageHigh` | success / warning / error | usage bars below 70%, 70-89%, from 90% |
-| `borderActive` | success | border and name of the active account |
-| `border` | subtle | border of the other cards |
+| `color_background` | engine's | background of the whole pane |
+| `color_text` | theme | text |
+| `color_low` / `color_medium` / `color_high` | success / warning / error | usage bars below 70%, 70-89%, from 90% |
+| `color_border_active` | success | border and name of the active account |
+| `color_border` | subtle | border of the other cards |
 
 The buttons are drawn by Claude Code and keep its look.

@@ -200,3 +200,70 @@ func TestSetRejectsBadInputWithoutWriting(t *testing.T) {
 		t.Errorf("file changed: %q", data)
 	}
 }
+
+func TestSetColorsAcceptsNamesThemeKeysAndHex(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	for _, change := range [][2]string{
+		{KeyColorBackground, "#1e1e1e"}, {KeyColorText, "white"}, {KeyColorLow, "success"}, {KeyColorBorder, "#abc"},
+	} {
+		if err := Set(path, change[0], change[1]); err != nil {
+			t.Fatalf("Set %v: %v", change, err)
+		}
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := got.Palette(); p.Background != "#1e1e1e" || p.Text != "white" || p.Low != "success" || p.Border != "#abc" || p.High != "" {
+		t.Errorf("palette = %+v", p)
+	}
+	if err := Set(path, KeyColorText, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(path); got.Palette().Text != "" {
+		t.Errorf("an empty value did not clear the color: %+v", got.Palette())
+	}
+}
+
+func TestSetColorsRejectsOddValues(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	for _, value := range []string{"#12", "#12345678a", "rgb(1,2,3)", "red; rm", "two words", "a\nb", strings.Repeat("a", 33)} {
+		if err := Set(path, KeyColorText, value); err == nil {
+			t.Errorf("color %q was accepted", value)
+		}
+	}
+}
+
+func TestSetColorKeyDoesNotTouchSimilarKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("color_border = 'red'\ncolor_border_active = 'green'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Set(path, KeyColorBorder, "blue"); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := Load(path)
+	if got.ColorBorder != "blue" || got.ColorBorderActive != "green" {
+		t.Errorf("config = %+v", got)
+	}
+}
+
+func TestSetPresetReplacesAllColors(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := SetPreset(path, "dark"); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := Load(path)
+	if p := got.Palette(); p.Background == "" || p.Text == "" || p.Low == "" || p.Medium == "" || p.High == "" || p.BorderActive == "" || p.Border == "" {
+		t.Errorf("dark leaves colors empty: %+v", p)
+	}
+	if err := SetPreset(path, "default"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(path); got.Palette() != (Colors{}) {
+		t.Errorf("default left colors: %+v", got.Palette())
+	}
+	if err := SetPreset(path, "neon"); err == nil {
+		t.Error("an unknown palette was accepted")
+	}
+}

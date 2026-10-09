@@ -12,10 +12,22 @@ export type ProfileStatus = {
   seven_day: Usage | null
 }
 
+/** The pane colors from `switchyard config --json`; empty means the Claude theme's color. */
+export type Colors = {
+  background: string
+  text: string
+  low: string
+  medium: string
+  high: string
+  border_active: string
+  border: string
+}
+
 /** The failover settings, from `switchyard config --json`. */
 export type Settings = {
   mode: 'auto' | 'ask'
   carry_context: boolean
+  colors: Colors
 }
 
 /** What the mod knows about switchyard, from `switchyard status --json` and `config --json`. */

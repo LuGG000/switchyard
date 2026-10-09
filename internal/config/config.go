@@ -47,6 +47,14 @@ type Config struct {
 	ContinuePrompt string `toml:"continue_prompt"`
 	// ProactiveThreshold switches at this five-hour usage percentage. Zero disables it.
 	ProactiveThreshold int `toml:"proactive_threshold"`
+	// The color settings style the mod's accounts pane; empty means the Claude theme's color.
+	ColorBackground   string `toml:"color_background"`
+	ColorText         string `toml:"color_text"`
+	ColorLow          string `toml:"color_low"`
+	ColorMedium       string `toml:"color_medium"`
+	ColorHigh         string `toml:"color_high"`
+	ColorBorderActive string `toml:"color_border_active"`
+	ColorBorder       string `toml:"color_border"`
 	// SourceDir is the claude config dir whose entries are shared with profiles.
 	// Empty means ~/.claude.
 	SourceDir string `toml:"source_dir"`
@@ -75,6 +83,9 @@ func (c Config) Validate() error {
 	case StrategySequential, StrategyMostHeadroom, StrategyRoundRobin:
 	default:
 		return fmt.Errorf("strategy: unknown value %q", c.Strategy)
+	}
+	if err := c.validateColors(); err != nil {
+		return err
 	}
 	if c.ProactiveThreshold < 0 || c.ProactiveThreshold > 100 {
 		return fmt.Errorf("proactive_threshold: %d out of range 0-100", c.ProactiveThreshold)
@@ -187,19 +198,27 @@ const (
 )
 
 // SettableKeys lists the settings Set can change, in display order.
-var SettableKeys = []string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold}
+var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold}, ColorKeys...)
 
 // Set changes one setting in the config file at path and leaves the rest of the
 // file, comments included, as it is. The value is checked before anything is
 // written. A missing file is created from the defaults first.
 func Set(path, key, value string) error {
+	return SetAll(path, [][2]string{{key, value}})
+}
+
+// SetAll changes several settings, each given as {key, value}, in one write.
+// Nothing is written unless every change is valid.
+func SetAll(path string, changes [][2]string) error {
 	cfg, err := Load(path)
 	if err != nil {
 		return err
 	}
-	literal, err := apply(&cfg, key, value)
-	if err != nil {
-		return err
+	literals := make([]string, len(changes))
+	for i, change := range changes {
+		if literals[i], err = apply(&cfg, change[0], change[1]); err != nil {
+			return err
+		}
 	}
 	if err := cfg.Validate(); err != nil {
 		return err
@@ -211,7 +230,10 @@ func Set(path, key, value string) error {
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
 	}
-	return writeAtomic(path, replaceKey(data, key, literal))
+	for i, change := range changes {
+		data = replaceKey(data, change[0], literals[i])
+	}
+	return writeAtomic(path, data)
 }
 
 // apply sets the field for key and returns the value as a TOML literal.
@@ -237,6 +259,9 @@ func apply(cfg *Config, key, value string) (string, error) {
 		}
 		cfg.ProactiveThreshold = n
 		return strconv.Itoa(n), nil
+	}
+	if cfg.setColor(key, value) {
+		return strconv.Quote(value), nil
 	}
 	return "", fmt.Errorf("unknown setting %q (want one of %s)", key, strings.Join(SettableKeys, ", "))
 }

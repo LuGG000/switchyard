@@ -112,7 +112,8 @@ test('/switch passes the choice on and reports a refusal', async ($, on) => {
   expect(usage.text).toMatch(/Usage: \/switch/)
 })
 
-const CONFIG = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, strategy: 'sequential', proactive_threshold: 0 })
+const COLORS = { background: '', text: '', low: '', medium: '', high: '', border_active: '', border: '' }
+const CONFIG = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, strategy: 'sequential', proactive_threshold: 0, colors: COLORS })
 
 /** A switchyard that answers status, config and `config set`. */
 function withConfig(argv: readonly string[]): Run {
@@ -176,8 +177,9 @@ test('the pane follows the theme unless colors are set', async ($, on) => {
   await ui.unmount()
 })
 
-test('the colors set in the options are used by the pane', { options: { background: '#101010', text: 'white', usageLow: 'cyan', borderActive: '#00ff88' } }, async ($, on) => {
-  world(on, withConfig)
+test('the colors of the switchyard config are used by the pane', async ($, on) => {
+  const colored = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, colors: { ...COLORS, background: '#101010', text: 'white', low: 'cyan', border_active: '#00ff88' } })
+  world(on, argv => (argv[1] === 'config' ? { exitCode: 0, stdout: colored, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
   await openAccounts($)
 
   const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
@@ -185,5 +187,17 @@ test('the colors set in the options are used by the pane', { options: { backgrou
   for (const wanted of ['"backgroundColor":"#101010"', '"color":"white"', '"color":"cyan"', '"#00ff88"']) {
     expect(drawn).toContain(wanted)
   }
+  await ui.unmount()
+})
+
+test('pressing a palette changes the colors through switchyard', async ($, on) => {
+  const calls = world(on, withConfig)
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  await ui.press({ key: 'colors-dark' })
+  await ui.press({ key: 'colors-default' })
+  expect(calls).toContainEqual(['switchyard', 'config', 'colors', 'dark'])
+  expect(calls).toContainEqual(['switchyard', 'config', 'colors', 'default'])
   await ui.unmount()
 })

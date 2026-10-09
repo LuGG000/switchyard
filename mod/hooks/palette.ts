@@ -1,6 +1,6 @@
-import type { PluginOptions } from 'claude-code'
+import type { Colors } from '../types'
 
-/** The colors of the accounts pane. Unset ones fall back to the person's theme. */
+/** The colors of the accounts pane, with the theme's colors where nothing is set. */
 export type Palette = {
   /** Background of the whole pane; undefined keeps the engine's. */
   background: string | undefined
@@ -14,26 +14,20 @@ export type Palette = {
   border: string
 }
 
-/** The theme colors used where an option is empty, so the pane follows the theme. */
+/** The theme colors used where a setting is empty, so the pane follows the theme. */
 const THEME = { low: 'success', medium: 'warning', high: 'error', borderActive: 'success', border: 'subtle' } as const
 
-/** A color option: a theme key, a color name or hex; empty or not a string is unset. */
-function color(options: PluginOptions, key: string): string | undefined {
-  const value = options[key]
-  const text = typeof value === 'string' ? value.trim() : ''
+const unset = (value: string | undefined): string | undefined => (value === undefined || value.trim() === '' ? undefined : value.trim())
 
-  return text === '' ? undefined : text
-}
-
-/** Reads the color options of the manifest's `userConfig`. */
-export function palette(options: PluginOptions): Palette {
+/** Turns the colors of the switchyard config into the palette the pane draws with. */
+export function palette(colors: Colors | null | undefined): Palette {
   return {
-    background: color(options, 'background'),
-    text: color(options, 'text'),
-    low: color(options, 'usageLow') ?? THEME.low,
-    medium: color(options, 'usageMedium') ?? THEME.medium,
-    high: color(options, 'usageHigh') ?? THEME.high,
-    borderActive: color(options, 'borderActive') ?? THEME.borderActive,
-    border: color(options, 'border') ?? THEME.border,
+    background: unset(colors?.background),
+    text: unset(colors?.text),
+    low: unset(colors?.low) ?? THEME.low,
+    medium: unset(colors?.medium) ?? THEME.medium,
+    high: unset(colors?.high) ?? THEME.high,
+    borderActive: unset(colors?.border_active) ?? THEME.borderActive,
+    border: unset(colors?.border) ?? THEME.border,
   }
 }

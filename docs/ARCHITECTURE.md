@@ -44,6 +44,7 @@ the hooks reach the launcher through the state file (see Decisions).
 | `strategy` | `sequential` | `sequential`, `most-headroom`, `round-robin` |
 | `continue_prompt` | empty | sent as the first message of a resumed session |
 | `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off |
+| `color_background`, `color_text`, `color_low`, `color_medium`, `color_high`, `color_border_active`, `color_border` | empty = theme | colors of the mod pane: a theme key (`success`, `subtle`, ...), a color name or hex; `config colors` with default, dark or light sets all |
 | `source_dir` | empty = `~/.claude` | claude config dir whose entries are shared |
 | `link` | projects, settings.json, CLAUDE.md, skills, agents, commands, plugins | entries shared with every profile |
 
@@ -152,8 +153,8 @@ Consumers must check `schema` first.
   account; a second line duplicated it). It adds `/accounts` (a pane with cards and
   buttons, plus a Failover card that sets `mode` and `carry_context` through
   `config set`) and `/switch` and `/failover`; it refreshes on `/accounts` and after
-  each turn. Its colors are options of the plugin (`userConfig`, empty = the theme's),
-  so they never touch the Claude theme or other mods. A
+  each turn. Its colors are settings of switchyard (`color_*`, empty = the theme's;
+  `config colors <palette>` sets all), so they never touch the Claude theme or other mods. A
   missing or failing `switchyard` is explained in the pane. The marketplace file is
   `.claude-plugin/marketplace.json` at the repo root (`source: ./mod`);
   `switchyard mod install` adds that marketplace and installs the plugin. The
@@ -165,7 +166,7 @@ Consumers must check `schema` first.
   `carry_context`, `strategy` and `proactive_threshold`; `config set <key> <value>`
   validates the value and changes that one line of `config.toml` (comments and the
   other lines stay; a missing file is created from the defaults). `config --json`
-  is `{"schema":1,"mode","carry_context","strategy","proactive_threshold"}`, new
+  is `{"schema":1,"mode","carry_context","strategy","proactive_threshold","colors":{...}}`, new
   fields may be added. The interactive launcher reads the config again at every
   limit, so a change applies to a running session; the hooks read it on every
   call. The status line ends with `on limit: auto` or `on limit: ask`.
