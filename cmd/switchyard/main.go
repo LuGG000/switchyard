@@ -21,7 +21,7 @@ func newRootCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.SetVersionTemplate("switchyard {{.Version}}\n")
-	root.AddCommand(newAddCmd(), newLoginCmd(), newListCmd(), newRepairCmd(), newRunCmd(), newStatusCmd(), newSwitchCmd(), newInitCmd(), newDoctorCmd())
+	root.AddCommand(newAddCmd(), newLoginCmd(), newListCmd(), newRepairCmd(), newRunCmd(), newStatusCmd(), newSwitchCmd(), newInitCmd(), newDoctorCmd(), newHookCmd())
 	return root
 }
 

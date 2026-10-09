@@ -28,6 +28,15 @@ type profileStatus struct {
 	Active        bool       `json:"active"`
 	LastUsed      *time.Time `json:"last_used"`
 	CooldownUntil *time.Time `json:"cooldown_until"`
+	FiveHour      *usageInfo `json:"five_hour"`
+	SevenDay      *usageInfo `json:"seven_day"`
+}
+
+// usageInfo is the last known usage of a limit window.
+type usageInfo struct {
+	UsedPercent float64   `json:"used_percent"`
+	ResetsAt    time.Time `json:"resets_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func newStatusCmd() *cobra.Command {
@@ -78,9 +87,18 @@ func buildStatus(m *profiles.Manager, store *state.Store) (statusReport, error) 
 			Active:        p.Name == st.Active,
 			LastUsed:      optionalTime(entry.LastUsed),
 			CooldownUntil: optionalTime(entry.CooldownUntil),
+			FiveHour:      usageOf(entry.FiveHour),
+			SevenDay:      usageOf(entry.SevenDay),
 		})
 	}
 	return report, nil
+}
+
+func usageOf(u *state.Usage) *usageInfo {
+	if u == nil {
+		return nil
+	}
+	return &usageInfo{UsedPercent: u.UsedPercent, ResetsAt: u.ResetsAt, UpdatedAt: u.UpdatedAt}
 }
 
 func optionalTime(t time.Time) *time.Time {
@@ -96,13 +114,14 @@ func printStatus(cmd *cobra.Command, report statusReport) error {
 		return nil
 	}
 	tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "\tNAME\tLAST USED\tCOOLDOWN UNTIL")
+	_, _ = fmt.Fprintln(tw, "\tNAME\t5H\t7D\tLAST USED\tCOOLDOWN UNTIL")
 	for _, p := range report.Profiles {
 		marker := " "
 		if p.Active {
 			marker = "*"
 		}
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", marker, p.Name, formatTime(p.LastUsed), formatTime(p.CooldownUntil))
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", marker, p.Name,
+			formatUsage(p.FiveHour), formatUsage(p.SevenDay), formatTime(p.LastUsed), formatTime(p.CooldownUntil))
 	}
 	return tw.Flush()
 }
@@ -112,4 +131,11 @@ func formatTime(t *time.Time) string {
 		return "-"
 	}
 	return t.Local().Format("2006-01-02 15:04")
+}
+
+func formatUsage(u *usageInfo) string {
+	if u == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%.0f%%", u.UsedPercent)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LuGG000/switchyard/internal/config"
+	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
 	"github.com/LuGG000/switchyard/internal/state"
@@ -91,6 +92,10 @@ func runClaude(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p pr
 	if err != nil {
 		return err
 	}
+	claudeArgs, err := withSignalSettings(p, args)
+	if err != nil {
+		return err
+	}
 	l := &launcher.Launcher{
 		Claude:  m.Claude,
 		Environ: os.Environ(),
@@ -98,7 +103,7 @@ func runClaude(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p pr
 		Stdout:  cmd.OutOrStdout(),
 		Stderr:  cmd.ErrOrStderr(),
 	}
-	code, err := l.Run(cmd.Context(), p, args)
+	code, err := l.Run(cmd.Context(), p, claudeArgs)
 	if err != nil {
 		return err
 	}
@@ -106,4 +111,18 @@ func runClaude(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p pr
 		return exitError{code: code}
 	}
 	return nil
+}
+
+// withSignalSettings prepends --settings so claude reports usage and rate limit
+// errors back to switchyard. The user's own settings files stay untouched.
+func withSignalSettings(p profiles.Profile, args []string) ([]string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("locate switchyard executable: %w", err)
+	}
+	settings, err := hooks.Settings(exe, p.Name)
+	if err != nil {
+		return nil, err
+	}
+	return append([]string{"--settings", settings}, args...), nil
 }

@@ -21,7 +21,7 @@ func TestBuildStatus(t *testing.T) {
 	used := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
 	err := store.Update(func(st *state.State) error {
 		st.Active = "b"
-		st.Profiles["b"] = state.Profile{LastUsed: used}
+		st.Profiles["b"] = state.Profile{LastUsed: used, FiveHour: &state.Usage{UsedPercent: 63, ResetsAt: used}}
 		return nil
 	})
 	if err != nil {
@@ -38,6 +38,10 @@ func TestBuildStatus(t *testing.T) {
 	a, b := report.Profiles[0], report.Profiles[1]
 	if a.Active || a.LastUsed != nil || !b.Active || b.LastUsed == nil || !b.LastUsed.Equal(used) {
 		t.Errorf("unexpected profile entries: %+v %+v", a, b)
+	}
+
+	if b.FiveHour == nil || b.FiveHour.UsedPercent != 63 || a.FiveHour != nil {
+		t.Errorf("usage not reported: %+v %+v", a.FiveHour, b.FiveHour)
 	}
 
 	data, err := json.Marshal(report)
