@@ -20,7 +20,7 @@ checksum:
 
 changelog:
   use: github
-  format: "- {{ .Message }}"
+  format: "{{ .Message }}"
   sort: asc
   groups:
     - title: Features
