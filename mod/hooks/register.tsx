@@ -1,9 +1,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Snapshot, Usage } from '../types'
+import type { Settings, Snapshot, Usage } from '../types'
 import {
+  describeSettings,
   isCoolingDown,
+  parseConfig,
+  parseFailoverArg,
   parseStatus,
   parseSwitchArgs,
   problem,
@@ -23,6 +26,17 @@ const snapshot = atom({ plugin: 'switchyard-mod', key: 'snapshot' } as const, nu
 
 type Engine = EngineInterface
 
+/** Reads the failover settings; null when the installed switchyard has no `config --json` the mod reads. */
+async function loadSettings($: Engine): Promise<Settings | null> {
+  try {
+    const run = await $.process.run(['switchyard', 'config', '--json'], { timeoutMs: 10_000 })
+
+    return run.exitCode === 0 ? parseConfig(run.stdout) : null
+  } catch {
+    return null
+  }
+}
+
 /** Reads the state of switchyard from its CLI; a missing or failing command is a snapshot, not an error. */
 async function load($: Engine): Promise<Snapshot> {
   try {
@@ -30,8 +44,9 @@ async function load($: Engine): Promise<Snapshot> {
     if (run.exitCode !== 0) {
       return { kind: 'unavailable', reason: `exit code ${run.exitCode}` }
     }
+    const status = parseStatus(run.stdout)
 
-    return parseStatus(run.stdout)
+    return status.kind === 'ok' ? { ...status, settings: await loadSettings($) } : status
   } catch {
     return { kind: 'unavailable', reason: 'command not found' }
   }
@@ -40,6 +55,21 @@ async function load($: Engine): Promise<Snapshot> {
 async function refresh($: Engine): Promise<void> {
   const current = await load($)
   await update($, snapshot, () => current)
+}
+
+/** Changes one failover setting; the answer is the text to show. */
+async function changeSetting($: Engine, key: string, value: string): Promise<string> {
+  try {
+    const run = await $.process.run(['switchyard', 'config', 'set', key, value], { timeoutMs: 10_000 })
+    if (run.exitCode !== 0) {
+      return run.stderr.trim() || `switchyard config failed (exit code ${run.exitCode})`
+    }
+  } catch {
+    return 'switchyard was not found in PATH'
+  }
+  await refresh($)
+
+  return `${key} = ${value}`
 }
 
 /** Asks the launcher to continue in `name`; the answer is the text to show. */
@@ -71,6 +101,11 @@ export const register: Register = on => {
       description: 'Continue this session in another switchyard account',
       argumentHint: '<account> [resume|fresh]',
     })
+    await $.command.register({
+      name: 'failover',
+      description: 'Show or set what happens at a limit: switch automatically or ask',
+      argumentHint: '[auto|ask]',
+    })
 
     return next(e)
   })
@@ -95,6 +130,21 @@ export const register: Register = on => {
     }
 
     return { text: await handoff($, parsed.name, parsed.flag) }
+  })
+
+  on('command.run', { command: 'failover' }, async ($, e) => {
+    const choice = parseFailoverArg(e.args)
+    if (choice === null) {
+      return { text: 'Usage: /failover [auto|ask]' }
+    }
+    if (choice === '') {
+      await refresh($)
+      const current = await read($, snapshot)
+
+      return { text: current?.kind === 'ok' && current.settings ? describeSettings(current.settings) : 'switchyard settings are not available.' }
+    }
+
+    return { text: await changeSetting($, 'mode', choice) }
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -127,8 +177,33 @@ export const register: Register = on => {
       </Box>
     )
 
+    const choice = (key: string, label: string, isCurrent: boolean, setting: string, value: string) => (
+      <Button
+        key={key}
+        label={isCurrent ? `✓ ${label}` : label}
+        variant={isCurrent ? 'primary' : undefined}
+        onPress={async () => $.ui.toast(await changeSetting($, setting, value))}
+      />
+    )
+    const settings = current.settings
+
     return (
       <Box flexDirection="column" gap={1}>
+        {settings && (
+          <Box flexDirection="column" borderStyle="round" borderColor="subtle" paddingX={1}>
+            <Text bold>Failover</Text>
+            <Box gap={1}>
+              <Text dimColor>At a limit</Text>
+              {choice('mode-auto', 'switch automatically', settings.mode === 'auto', 'mode', 'auto')}
+              {choice('mode-ask', 'ask me', settings.mode === 'ask', 'mode', 'ask')}
+            </Box>
+            <Box gap={1}>
+              <Text dimColor>Conversation</Text>
+              {choice('carry-on', 'take it along', settings.carry_context, 'carry_context', 'true')}
+              {choice('carry-off', 'start new', !settings.carry_context, 'carry_context', 'false')}
+            </Box>
+          </Box>
+        )}
         {current.profiles.length === 0 && <Text dimColor>No accounts yet. Create one with: switchyard add &lt;name&gt;</Text>}
         {current.profiles.map(p => (
           <Box

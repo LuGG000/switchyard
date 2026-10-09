@@ -1,6 +1,9 @@
 import { expect, test } from 'claude-code/testing'
 
 import {
+  describeSettings,
+  parseConfig,
+  parseFailoverArg,
   parseStatus,
   parseSwitchArgs,
   problem,
@@ -91,4 +94,25 @@ test('a reset is named by time today and by weekday and time later', async () =>
   expect(resetLabel(new Date(2026, 9, 12, 8, 5).toISOString(), now)).toBe('resets Mon 08:05')
   expect(resetLabel(new Date(2026, 9, 9, 9, 0).toISOString(), now)).toBe('')
   expect(resetLabel('', now)).toBe('')
+})
+
+test('reads the failover settings of the supported schema', async () => {
+  const config = (extra: object) => JSON.stringify({ schema: 1, mode: 'auto', carry_context: false, strategy: 'sequential', proactive_threshold: 0, ...extra })
+  expect(parseConfig(config({}))).toEqual({ mode: 'auto', carry_context: false })
+  expect(parseConfig(config({ schema: 2 }))).toBeNull()
+  expect(parseConfig(config({ mode: 'sometimes' }))).toBeNull()
+  expect(parseConfig(config({ carry_context: 'yes' }))).toBeNull()
+  expect(parseConfig('not json')).toBeNull()
+})
+
+test('the settings are described in a sentence', async () => {
+  expect(describeSettings({ mode: 'auto', carry_context: false })).toBe('At a limit: auto (switches without asking). Conversation: started new.')
+  expect(describeSettings({ mode: 'ask', carry_context: true })).toBe('At a limit: ask (asks in the terminal). Conversation: taken along.')
+})
+
+test('parses the argument of /failover', async () => {
+  expect(parseFailoverArg('')).toBe('')
+  expect(parseFailoverArg(' AUTO ')).toBe('auto')
+  expect(parseFailoverArg('ask')).toBe('ask')
+  expect(parseFailoverArg('never')).toBeNull()
 })

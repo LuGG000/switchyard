@@ -111,3 +111,56 @@ test('/switch passes the choice on and reports a refusal', async ($, on) => {
   const usage = await runCommand($, 'switch', '')
   expect(usage.text).toMatch(/Usage: \/switch/)
 })
+
+const CONFIG = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, strategy: 'sequential', proactive_threshold: 0 })
+
+/** A switchyard that answers status, config and `config set`. */
+function withConfig(argv: readonly string[]): Run {
+  if (argv[1] === 'config') {
+    return { exitCode: 0, stdout: argv[2] === 'set' ? `${argv[3]} = ${argv[4]}\n` : CONFIG, stderr: '' }
+  }
+
+  return { exitCode: 0, stdout: STATUS, stderr: '' }
+}
+
+test('the pane shows the failover settings and marks the current choice', async ($, on) => {
+  world(on, withConfig)
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  expect((await ui.find({ key: 'mode-ask' }))?.text).toMatch(/✓/)
+  expect((await ui.find({ key: 'mode-auto' }))?.text).not.toMatch(/✓/)
+  expect((await ui.find({ key: 'carry-on' }))?.text).toMatch(/✓/)
+  await ui.unmount()
+})
+
+test('pressing a failover choice changes the setting through switchyard', async ($, on) => {
+  const calls = world(on, withConfig)
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  await ui.press({ key: 'mode-auto' })
+  await ui.press({ key: 'carry-off' })
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'mode', 'auto'])
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'carry_context', 'false'])
+  await ui.unmount()
+})
+
+test('an older switchyard without config leaves the settings out of the pane', async ($, on) => {
+  world(on, argv => (argv[1] === 'config' ? { exitCode: 1, stdout: '', stderr: 'unknown command' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  expect(await ui.find({ key: 'mode-auto' })).toBeUndefined()
+  expect(await ui.find({ key: 'switch-zweit' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('/failover shows, sets and refuses', async ($, on) => {
+  const calls = world(on, withConfig)
+
+  expect((await runCommand($, 'failover', '')).text).toBe('At a limit: ask (asks in the terminal). Conversation: taken along.')
+  expect((await runCommand($, 'failover', 'auto')).text).toBe('mode = auto')
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'mode', 'auto'])
+  expect((await runCommand($, 'failover', 'sometimes')).text).toMatch(/Usage: \/failover/)
+})

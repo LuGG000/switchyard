@@ -1,4 +1,4 @@
-import type { ProfileStatus, Snapshot } from '../types'
+import type { ProfileStatus, Settings, Snapshot } from '../types'
 
 /** The `status --json` schema this mod reads. */
 export const SUPPORTED_SCHEMA = 1
@@ -52,7 +52,7 @@ export function parseStatus(stdout: string): Snapshot {
     ? report.profiles.map(profile).filter((p): p is ProfileStatus => p !== null)
     : []
 
-  return { kind: 'ok', active: typeof report.active === 'string' ? report.active : '', profiles }
+  return { kind: 'ok', active: typeof report.active === 'string' ? report.active : '', profiles, settings: null }
 }
 
 /** Whether a cooldown still holds at `now` (milliseconds since the epoch). */
@@ -137,4 +137,39 @@ export function resetLabel(iso: string, now: number): string {
 /** The local time of day of an ISO timestamp. */
 export function timeOfDay(iso: string): string {
   return clock(iso)
+}
+
+/** The `config --json` schema this mod reads. */
+export const SUPPORTED_CONFIG_SCHEMA = 1
+
+/** Reads the output of `switchyard config --json`; null when it is not something the mod reads. */
+export function parseConfig(stdout: string): Settings | null {
+  let report: unknown
+  try {
+    report = JSON.parse(stdout)
+  } catch {
+    return null
+  }
+  if (!isRecord(report) || report.schema !== SUPPORTED_CONFIG_SCHEMA) {
+    return null
+  }
+  if ((report.mode !== 'auto' && report.mode !== 'ask') || typeof report.carry_context !== 'boolean') {
+    return null
+  }
+
+  return { mode: report.mode, carry_context: report.carry_context }
+}
+
+/** The settings in a sentence, for `/failover`. */
+export function describeSettings(s: Settings): string {
+  const mode = s.mode === 'auto' ? 'auto (switches without asking)' : 'ask (asks in the terminal)'
+
+  return `At a limit: ${mode}. Conversation: ${s.carry_context ? 'taken along' : 'started new'}.`
+}
+
+/** The argument of `/failover`: auto, ask, or nothing to show the current setting. */
+export function parseFailoverArg(args: string): 'auto' | 'ask' | '' | null {
+  const word = args.trim().toLowerCase()
+
+  return word === '' || word === 'auto' || word === 'ask' ? word : null
 }

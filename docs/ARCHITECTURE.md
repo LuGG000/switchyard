@@ -150,7 +150,9 @@ Consumers must check `schema` first.
   1 and treats anything else as incompatible) and `handoff`. It has no status
   line of its own (the statusLine that `run` injects already shows the active
   account; a second line duplicated it). It adds `/accounts` (a pane with cards and
-  buttons) and `/switch`, and refreshes on `/accounts` and after each turn. A
+  buttons, plus a Failover card that sets `mode` and `carry_context` through
+  `config set`) and `/switch` and `/failover`; it refreshes on `/accounts` and after
+  each turn. A
   missing or failing `switchyard` is explained in the pane. The marketplace file is
   `.claude-plugin/marketplace.json` at the repo root (`source: ./mod`);
   `switchyard mod install` adds that marketplace and installs the plugin. The

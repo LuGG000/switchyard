@@ -12,9 +12,15 @@ export type ProfileStatus = {
   seven_day: Usage | null
 }
 
-/** What the mod knows about switchyard, from `switchyard status --json`. */
+/** The failover settings, from `switchyard config --json`. */
+export type Settings = {
+  mode: 'auto' | 'ask'
+  carry_context: boolean
+}
+
+/** What the mod knows about switchyard, from `switchyard status --json` and `config --json`. */
 export type Snapshot =
-  | { kind: 'ok'; active: string; profiles: ProfileStatus[] }
+  | { kind: 'ok'; active: string; profiles: ProfileStatus[]; settings: Settings | null }
   /** The command is missing from PATH or failed. */
   | { kind: 'unavailable'; reason: string }
   /** The command reports a schema this mod does not read. */
