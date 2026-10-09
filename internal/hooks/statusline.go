@@ -24,6 +24,8 @@ type Handler struct {
 	Profile string
 	// ProfileDir is the profile's claude config dir; the user's statusLine is read from it.
 	ProfileDir string
+	// Mode is the failover mode (auto or ask); the status line names it.
+	Mode string
 	// Threshold is the five-hour usage percentage that asks the launcher to
 	// switch profiles; zero disables it.
 	Threshold int
@@ -82,7 +84,7 @@ func (h *Handler) Statusline(in io.Reader, out io.Writer) error {
 		_, err := io.WriteString(out, text)
 		return err
 	}
-	_, err = fmt.Fprintln(out, summary(h.Profile, five, seven))
+	_, err = fmt.Fprintln(out, summary(h.Profile, five, seven, h.Mode))
 	return err
 }
 
@@ -111,13 +113,16 @@ func usage(w *window, now time.Time) *state.Usage {
 	return &state.Usage{UsedPercent: w.UsedPercentage, ResetsAt: time.Unix(w.ResetsAt, 0).UTC(), UpdatedAt: now.UTC()}
 }
 
-func summary(profile string, five, seven *state.Usage) string {
+func summary(profile string, five, seven *state.Usage, mode string) string {
 	parts := []string{profile}
 	if five != nil {
 		parts = append(parts, fmt.Sprintf("5h %.0f%%", five.UsedPercent))
 	}
 	if seven != nil {
 		parts = append(parts, fmt.Sprintf("7d %.0f%%", seven.UsedPercent))
+	}
+	if mode != "" {
+		parts = append(parts, "on limit: "+mode)
 	}
 	return strings.Join(parts, " · ")
 }

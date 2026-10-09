@@ -286,3 +286,15 @@ func TestStatuslineThresholdRequestsSwitch(t *testing.T) {
 		})
 	}
 }
+
+func TestStatuslineNamesTheFailoverMode(t *testing.T) {
+	h := newHandler(t)
+	h.Mode = "auto"
+	var out bytes.Buffer
+	if err := h.Statusline(strings.NewReader(rateLimitsJSON), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.TrimSpace(out.String()), "acc1 · 5h 63% · 7d 21% · on limit: auto"; got != want {
+		t.Errorf("status line = %q, want %q", got, want)
+	}
+}

@@ -46,6 +46,9 @@ type Runner struct {
 	ContinuePrompt string
 	// Prepare records p as in use and returns the final claude arguments for it.
 	Prepare func(p profiles.Profile, args []string) ([]string, error)
+	// Reload, if set, returns the current config. It is read at every limit, so a
+	// change of mode, strategy or carry_context applies to a running session.
+	Reload func() (config.Config, error)
 	// Now returns the current time.
 	Now func() time.Time
 	// Poll is how often the state is checked for a switch request.
@@ -282,6 +285,7 @@ func (r *Runner) printf(format string, a ...any) {
 // next resolves a switch request into the profile to continue with and whether
 // to carry the conversation. A nil profile means the user quit.
 func (r *Runner) next(ctx context.Context, current profiles.Profile, req state.SwitchRequest) (*profiles.Profile, bool, error) {
+	r.reload()
 	if req.Reason == state.ReasonManual {
 		return r.handoff(current, req)
 	}
@@ -308,4 +312,17 @@ func (r *Runner) handoff(current profiles.Profile, req state.SwitchRequest) (*pr
 		r.printf("%s\n", ColdCacheHint)
 	}
 	return &r.Profiles[i], carry, nil
+}
+
+// reload takes the settings of the current config; a config that cannot be read
+// leaves the ones in use.
+func (r *Runner) reload() {
+	if r.Reload == nil {
+		return
+	}
+	cfg, err := r.Reload()
+	if err != nil {
+		return
+	}
+	r.Mode, r.Strategy, r.CarryContext, r.ContinuePrompt = cfg.Mode, cfg.Strategy, cfg.CarryContext, cfg.ContinuePrompt
 }

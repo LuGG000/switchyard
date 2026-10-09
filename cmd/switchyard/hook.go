@@ -67,9 +67,9 @@ func newHookHandler(profileName string) (*hooks.Handler, error) {
 		return nil, err
 	}
 	h := &hooks.Handler{Store: store, Profile: p.Name, ProfileDir: p.Dir, Now: time.Now}
-	// A broken config must not break claude's status line; it only disables the threshold.
+	// A broken config must not break claude's status line; it only drops the threshold and the mode.
 	if cfg, err := loadConfig(); err == nil {
-		h.Threshold = cfg.ProactiveThreshold
+		h.Threshold, h.Mode = cfg.ProactiveThreshold, cfg.Mode
 	}
 	return h, nil
 }

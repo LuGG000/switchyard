@@ -48,6 +48,7 @@ func runInteractive(cmd *cobra.Command, m *profiles.Manager, store *state.Store,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)
 		},
+		Reload:    loadConfig,
 		Now:       time.Now,
 		Poll:      failoverPoll,
 		StopGrace: stopGrace,

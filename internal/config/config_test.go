@@ -124,3 +124,79 @@ func TestWriteDefaultCreatesLoadableFileOnce(t *testing.T) {
 		t.Error("existing config was overwritten")
 	}
 }
+
+func TestSetChangesOneLineAndKeepsTheRest(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	original := "# my notes\nmode = 'ask'\ncarry_context = true\nstrategy = 'sequential'\nproactive_threshold = 0\nsource_dir = '/x'\n"
+	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, change := range [][2]string{{KeyMode, "auto"}, {KeyCarryContext, "false"}, {KeyProactiveThreshold, "90"}, {KeyStrategy, "round-robin"}} {
+		if err := Set(path, change[0], change[1]); err != nil {
+			t.Fatalf("Set %v: %v", change, err)
+		}
+	}
+
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Mode != ModeAuto || got.CarryContext || got.ProactiveThreshold != 90 || got.Strategy != StrategyRoundRobin || got.SourceDir != "/x" {
+		t.Errorf("config = %+v", got)
+	}
+	data, _ := os.ReadFile(path)
+	if !strings.HasPrefix(string(data), "# my notes\nmode = \"auto\"\n") {
+		t.Errorf("file = %q", data)
+	}
+}
+
+func TestSetKeepsWindowsLineEndings(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("mode = 'ask'\r\nstrategy = 'sequential'\r\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Set(path, KeyMode, "auto"); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	if string(data) != "mode = \"auto\"\r\nstrategy = 'sequential'\r\n" {
+		t.Errorf("file = %q", data)
+	}
+}
+
+func TestSetAddsAMissingKeyAndCreatesAMissingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("mode = 'ask'"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Set(path, KeyProactiveThreshold, "80"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(path); got.ProactiveThreshold != 80 {
+		t.Errorf("threshold = %d", got.ProactiveThreshold)
+	}
+
+	fresh := filepath.Join(t.TempDir(), "sub", "config.toml")
+	if err := Set(fresh, KeyMode, "auto"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(fresh); got.Mode != ModeAuto || !got.CarryContext {
+		t.Errorf("config = %+v, want auto with the defaults otherwise", got)
+	}
+}
+
+func TestSetRejectsBadInputWithoutWriting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("mode = 'ask'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range [][2]string{{KeyMode, "sometimes"}, {KeyCarryContext, "maybe"}, {KeyProactiveThreshold, "150"}, {KeyProactiveThreshold, "x"}, {"colour", "red"}, {"link", "a"}} {
+		if err := Set(path, change[0], change[1]); err == nil {
+			t.Errorf("Set %v did not fail", change)
+		}
+	}
+	if data, _ := os.ReadFile(path); string(data) != "mode = 'ask'\n" {
+		t.Errorf("file changed: %q", data)
+	}
+}

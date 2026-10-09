@@ -365,3 +365,33 @@ func TestManualHandoffToUnknownProfileFails(t *testing.T) {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestSettingsAreReloadedAtEveryLimit(t *testing.T) {
+	f := newFixture(t, "", "a-limited", "b")
+	f.runner.Mode = config.ModeAsk
+	f.runner.In = strings.NewReader("") // asking would end the run as a quit
+	f.runner.Reload = func() (config.Config, error) {
+		cfg := config.Default()
+		cfg.Mode, cfg.CarryContext = config.ModeAuto, false
+		return cfg, nil
+	}
+	if code, err := f.run(t); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	args, _ := f.lastReport(t)
+	if slices.Contains(args, "--resume") || strings.Contains(f.out.String(), "Switch to") {
+		t.Errorf("the changed settings were not used: args %v, output %q", args, f.out.String())
+	}
+}
+
+func TestUnreadableConfigKeepsTheSettingsInUse(t *testing.T) {
+	f := newFixture(t, "", "a-limited", "b")
+	f.runner.Mode = config.ModeAuto
+	f.runner.Reload = func() (config.Config, error) { return config.Config{}, errors.New("broken") }
+	if code, err := f.run(t); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if !slices.Contains(f.launches, "b") {
+		t.Errorf("launches = %v", f.launches)
+	}
+}

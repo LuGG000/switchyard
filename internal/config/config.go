@@ -2,11 +2,15 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -172,4 +176,109 @@ func configDir() (string, error) {
 		return "", fmt.Errorf("locate config dir: %w", err)
 	}
 	return filepath.Join(base, appName), nil
+}
+
+// Setting names Set can change.
+const (
+	KeyMode               = "mode"
+	KeyCarryContext       = "carry_context"
+	KeyStrategy           = "strategy"
+	KeyProactiveThreshold = "proactive_threshold"
+)
+
+// SettableKeys lists the settings Set can change, in display order.
+var SettableKeys = []string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold}
+
+// Set changes one setting in the config file at path and leaves the rest of the
+// file, comments included, as it is. The value is checked before anything is
+// written. A missing file is created from the defaults first.
+func Set(path, key, value string) error {
+	cfg, err := Load(path)
+	if err != nil {
+		return err
+	}
+	literal, err := apply(&cfg, key, value)
+	if err != nil {
+		return err
+	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	if _, err := WriteDefault(path); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read config: %w", err)
+	}
+	return writeAtomic(path, replaceKey(data, key, literal))
+}
+
+// apply sets the field for key and returns the value as a TOML literal.
+func apply(cfg *Config, key, value string) (string, error) {
+	switch key {
+	case KeyMode:
+		cfg.Mode = value
+		return strconv.Quote(value), nil
+	case KeyStrategy:
+		cfg.Strategy = value
+		return strconv.Quote(value), nil
+	case KeyCarryContext:
+		b, err := strconv.ParseBool(value)
+		if err != nil {
+			return "", fmt.Errorf("%s: %q is not true or false", key, value)
+		}
+		cfg.CarryContext = b
+		return strconv.FormatBool(b), nil
+	case KeyProactiveThreshold:
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return "", fmt.Errorf("%s: %q is not a whole number", key, value)
+		}
+		cfg.ProactiveThreshold = n
+		return strconv.Itoa(n), nil
+	}
+	return "", fmt.Errorf("unknown setting %q (want one of %s)", key, strings.Join(SettableKeys, ", "))
+}
+
+// replaceKey sets `key = literal` on the first line that assigns key, or appends
+// it. Line endings are kept.
+func replaceKey(data []byte, key, literal string) []byte {
+	pattern := regexp.MustCompile(`(?m)^([ \t]*)` + regexp.QuoteMeta(key) + `[ \t]*=.*?(\r?)$`)
+	line := key + " = " + literal
+	if pattern.Match(data) {
+		replaced := false
+		return pattern.ReplaceAllFunc(data, func(m []byte) []byte {
+			if replaced {
+				return m
+			}
+			replaced = true
+			parts := pattern.FindSubmatch(m)
+			return []byte(string(parts[1]) + line + string(parts[2]))
+		})
+	}
+	if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
+		data = append(data, '\n')
+	}
+	return append(data, []byte(line+"\n")...)
+}
+
+// writeAtomic replaces the file at path through a temp file in the same directory.
+func writeAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp config: %w", err)
+	}
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write config: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return fmt.Errorf("replace config: %w", err)
+	}
+	return nil
 }

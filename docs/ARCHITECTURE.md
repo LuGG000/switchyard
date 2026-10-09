@@ -8,7 +8,7 @@ decisions taken while building it. Where the two differ, this file wins.
 
 | Package | Purpose |
 | --- | --- |
-| `cmd/switchyard` | cobra CLI: `init add login list status switch handoff run repair doctor` and the hidden `hook` command |
+| `cmd/switchyard` | cobra CLI: `init add login list status switch handoff config run repair doctor` and the hidden `hook` command |
 | `internal/config` | `config.toml` loading, defaults, validation; data and config directory lookup |
 | `internal/state` | `state.json` with inter-process file lock (`gofrs/flock`) and atomic writes |
 | `internal/profiles` | profile directories, `claude auth login/status` wrappers, subscription validation |
@@ -158,3 +158,11 @@ Consumers must check `schema` first.
   that the launcher carries out. Buttons for the `ask` question are not built:
   the launcher ends claude as soon as a limit is reported, so there is nothing
   left to press; that needs a decision channel (follow-up issue).
+- **Settings at runtime.** `switchyard config [--json]` shows `mode`,
+  `carry_context`, `strategy` and `proactive_threshold`; `config set <key> <value>`
+  validates the value and changes that one line of `config.toml` (comments and the
+  other lines stay; a missing file is created from the defaults). `config --json`
+  is `{"schema":1,"mode","carry_context","strategy","proactive_threshold"}`, new
+  fields may be added. The interactive launcher reads the config again at every
+  limit, so a change applies to a running session; the hooks read it on every
+  call. The status line ends with `on limit: auto` or `on limit: ask`.
