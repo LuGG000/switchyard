@@ -3,9 +3,9 @@
 Optional mod for Claude Code. It talks to the `switchyard` command only
 (`status --json`, `handoff`), so switchyard works without it.
 
-- **Status line:** `switchyard: main · 5h 20% · 7d 18%`, refreshed every 30
-  seconds and after every turn. It shows the end of a cooldown when the active
-  account has hit its limit.
+- **No status line of its own.** The line under the prompt comes from the
+  statusLine that `switchyard run` injects (`main · 5h 20% · 7d 18%`, the active
+  account only), so the mod adds nothing there.
 - **`/accounts`:** a pane with every account, its usage, and buttons to continue
   the conversation in another account or to start a new one there.
 - **`/switch <account> [resume|fresh]`:** the same from the prompt.

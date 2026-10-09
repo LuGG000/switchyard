@@ -40,7 +40,6 @@ function fakeCli(on: On, answer: (argv: readonly string[]) => Run | null) {
 function world(on: On, answer: (argv: readonly string[]) => Run | null) {
   mock.clock(on, { now: Date.parse('2026-10-09T12:00:00Z') })
   on('session.id', () => ({ value: 'session-1' }))
-  on('ui.status', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
 
   return fakeCli(on, answer)

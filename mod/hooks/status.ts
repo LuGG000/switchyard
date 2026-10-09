@@ -67,32 +67,6 @@ function clock(iso: string): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-/** The usage of one profile as `5h 20% · 7d 18%`, with the end of a cooldown. */
-export function describeProfile(p: ProfileStatus, now: number): string {
-  const parts: string[] = []
-  if (p.five_hour) {
-    parts.push(`5h ${Math.round(p.five_hour.used_percent)}%`)
-  }
-  if (p.seven_day) {
-    parts.push(`7d ${Math.round(p.seven_day.used_percent)}%`)
-  }
-  if (p.cooldown_until !== null && isCoolingDown(p, now)) {
-    parts.push(`limit until ${clock(p.cooldown_until)}`)
-  }
-
-  return parts.length > 0 ? parts.join(' · ') : 'no usage yet'
-}
-
-/** The pinned status line, or undefined while switchyard has nothing to show. */
-export function statusLine(snapshot: Snapshot | null, now: number): string | undefined {
-  if (snapshot?.kind !== 'ok') {
-    return undefined
-  }
-  const active = snapshot.profiles.find(p => p.name === snapshot.active)
-
-  return active ? `switchyard: ${active.name} · ${describeProfile(active, now)}` : undefined
-}
-
 /** The one line the pane shows when switchyard cannot be read. */
 export function problem(snapshot: Snapshot | null): string | undefined {
   switch (snapshot?.kind) {

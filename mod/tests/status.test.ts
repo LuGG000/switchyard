@@ -1,18 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
 import {
-  describeProfile,
   parseStatus,
   parseSwitchArgs,
   problem,
   resetLabel,
-  statusLine,
   usageBar,
   usageLevel,
 } from '../hooks/status'
-import type { Snapshot } from '../types'
-
-const NOW = Date.parse('2026-10-09T12:00:00Z')
 
 const OK = JSON.stringify({
   schema: 1,
@@ -58,29 +53,6 @@ test('malformed profiles are dropped, the rest is kept', async () => {
   if (snapshot.kind === 'ok') {
     expect(snapshot.profiles.map(p => p.name)).toEqual(['a'])
   }
-})
-
-test('the status line shows the active profile and its usage', async () => {
-  expect(statusLine(parseStatus(OK), NOW)).toBe('switchyard: main · 5h 20% · 7d 18%')
-})
-
-test('the status line names the end of a cooldown', async () => {
-  const snapshot = parseStatus(OK)
-  if (snapshot.kind !== 'ok') {
-    throw new Error('expected an ok snapshot')
-  }
-  const limited: Snapshot = {
-    ...snapshot,
-    profiles: snapshot.profiles.map(p => (p.active ? { ...p, cooldown_until: '2026-10-09T15:00:00Z' } : p)),
-  }
-  expect(statusLine(limited, NOW)).toMatch(/^switchyard: main · 5h 20% · 7d 18% · limit until \d\d:\d\d$/)
-  expect(describeProfile(limited.profiles[0]!, Date.parse('2026-10-09T16:00:00Z'))).toBe('5h 20% · 7d 18%')
-})
-
-test('the status line stays silent without readable status', async () => {
-  expect(statusLine(null, NOW)).toBeUndefined()
-  expect(statusLine({ kind: 'unavailable', reason: 'x' }, NOW)).toBeUndefined()
-  expect(statusLine({ kind: 'incompatible', schema: 9 }, NOW)).toBeUndefined()
 })
 
 test('problems are described for the pane', async () => {

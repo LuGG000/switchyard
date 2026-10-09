@@ -147,10 +147,11 @@ Consumers must check `schema` first.
   cannot tell whether that is the case.
 - **Mod.** `mod/` is a Claude Code plugin of function hooks (TypeScript) that
   talks to the core only through the CLI: `status --json` (the mod accepts schema
-  1 and treats anything else as incompatible) and `handoff`. It pins a status
-  line, adds `/accounts` (a pane with buttons) and `/switch`, and refreshes every
-  30 s and after each turn. A missing or failing `switchyard` leaves the status
-  line empty and is explained in the pane. The marketplace file is
+  1 and treats anything else as incompatible) and `handoff`. It has no status
+  line of its own (the statusLine that `run` injects already shows the active
+  account; a second line duplicated it). It adds `/accounts` (a pane with cards and
+  buttons) and `/switch`, and refreshes on `/accounts` and after each turn. A
+  missing or failing `switchyard` is explained in the pane. The marketplace file is
   `.claude-plugin/marketplace.json` at the repo root (`source: ./mod`);
   `switchyard mod install` adds that marketplace and installs the plugin. The
   mod cannot end claude or swap credentials, so a switch is always a `handoff`

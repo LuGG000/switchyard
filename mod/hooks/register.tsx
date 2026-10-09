@@ -8,7 +8,6 @@ import {
   parseSwitchArgs,
   problem,
   resetLabel,
-  statusLine,
   timeOfDay,
   usageBar,
   usageLevel,
@@ -16,7 +15,6 @@ import {
 import type { Level } from './status'
 
 const PANE = 'accounts'
-const POLL_MS = 30_000
 
 /** Theme colors of the usage levels, so the pane follows the person's theme. */
 const COLOR: Record<Level, string> = { ok: 'success', warn: 'warning', high: 'error' }
@@ -39,12 +37,9 @@ async function load($: Engine): Promise<Snapshot> {
   }
 }
 
-async function refresh($: Engine): Promise<Snapshot> {
+async function refresh($: Engine): Promise<void> {
   const current = await load($)
   await update($, snapshot, () => current)
-  $.ui.status(statusLine(current, await $.clock.now()))
-
-  return current
 }
 
 /** Asks the launcher to continue in `name`; the answer is the text to show. */
@@ -76,8 +71,6 @@ export const register: Register = on => {
       description: 'Continue this session in another switchyard account',
       argumentHint: '<account> [resume|fresh]',
     })
-    void refresh($)
-    $.clock.every(POLL_MS, () => refresh($))
 
     return next(e)
   })
