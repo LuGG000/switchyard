@@ -86,4 +86,5 @@ tsc -p mod                            # needs the generated types, see mod/READM
 1. `main` is green and the changes are merged.
 2. Check the release config locally: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean` (the output in `dist/` is ignored by git).
 3. Tag and push: `git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0`. The `release` workflow builds the archives and creates the GitHub release with notes grouped by Conventional Commit type (`docs:`, `ci:`, `chore:`, `test:` are left out).
-4. Versions follow semver; while the version is below 1.0.0 minor releases may change behavior. Update hints in `switchyard` read the latest non-draft, non-prerelease release.
+4. `.deb`/`.rpm` packages and macOS archives are built by the same run. `packaging/aur/PKGBUILD` is updated by hand per release (bump `pkgver`, then `sha256sums` from the tag tarball). CI builds a snapshot release and checks the dependency licenses.
+5. Versions follow semver; while the version is below 1.0.0 minor releases may change behavior. Update hints in `switchyard` read the latest non-draft, non-prerelease release.
