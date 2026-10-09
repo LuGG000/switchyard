@@ -213,3 +213,28 @@ export function parseCommand(args: string): Command {
       return { kind: 'help' }
   }
 }
+
+/** The colors of the pane that can be set, with the switchyard setting behind each. */
+export const COLOR_SLOTS = [
+  { id: 'background', label: 'background', key: 'color_background', get: (c: Colors) => c.background },
+  { id: 'text', label: 'text', key: 'color_text', get: (c: Colors) => c.text },
+  { id: 'low', label: 'usage low', key: 'color_low', get: (c: Colors) => c.low },
+  { id: 'medium', label: 'usage medium', key: 'color_medium', get: (c: Colors) => c.medium },
+  { id: 'high', label: 'usage high', key: 'color_high', get: (c: Colors) => c.high },
+  { id: 'active', label: 'active border', key: 'color_border_active', get: (c: Colors) => c.border_active },
+  { id: 'border', label: 'other borders', key: 'color_border', get: (c: Colors) => c.border },
+] as const
+
+/** The color names offered in the pickers; any other color is typed in. */
+export const NAMED_COLORS = ['white', 'black', 'gray', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan'] as const
+
+/** Reads `<slot> <color>` typed into the custom field; `theme` clears the color. Null when it is not that. */
+export function parseCustomColor(text: string): { key: string; value: string } | null {
+  const [id, color, ...rest] = text.trim().split(/\s+/)
+  const slot = COLOR_SLOTS.find(s => s.id === id?.toLowerCase())
+  if (!slot || !color || rest.length > 0) {
+    return null
+  }
+
+  return { key: slot.key, value: color.toLowerCase() === 'theme' ? '' : color }
+}

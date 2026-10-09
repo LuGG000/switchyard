@@ -10,8 +10,10 @@ One command, `/switchyard`, opens a pane with two pages:
   ticked) and a card per account with its usage bars, reset time and buttons to
   continue the conversation there or to start a new one. The buttons **Style**
   and **Refresh** are at the top.
-- **Style:** palettes (theme, dark, light), a preview of the usage colors and the
-  colors in use. **Back** returns to the overview.
+- **Style:** palettes (theme, dark, light), a preview of the usage colors and a picker for
+  every color (theme or a common color name), plus a field for any other color (type
+  the slot and the color, for example `background #1e1e1e`). **Back** returns to the
+  overview.
 
 For the keyboard the command takes arguments:
 
@@ -43,7 +45,7 @@ switchyard config set color_background '#1e1e1e'  # a single color
 switchyard config set color_background ''         # back to the theme's
 ```
 
-The Style page has the same palettes as buttons. A color is a theme color
+The Style page does the same with buttons, pickers and a field. A color is a theme color
 (`success`, `warning`, `error`, `subtle`, ...), a color name or hex; empty means
 the theme's.
 

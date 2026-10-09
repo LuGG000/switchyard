@@ -5,6 +5,7 @@ import {
   parseConfig,
   parseStatus,
   parseCommand,
+  parseCustomColor,
   problem,
   resetLabel,
   usageBar,
@@ -113,4 +114,13 @@ test('reads the failover settings of the supported schema', async () => {
 test('the settings are described in a sentence', async () => {
   expect(describeSettings({ mode: 'auto', carry_context: false, colors: NO_COLORS })).toBe('At a limit: auto (switches without asking). Conversation: started new.')
   expect(describeSettings({ mode: 'ask', carry_context: true, colors: NO_COLORS })).toBe('At a limit: ask (asks in the terminal). Conversation: taken along.')
+})
+
+test('a typed color names a slot and a color', async () => {
+  expect(parseCustomColor('background #1e1e1e')).toEqual({ key: 'color_background', value: '#1e1e1e' })
+  expect(parseCustomColor('  ACTIVE   magenta ')).toEqual({ key: 'color_border_active', value: 'magenta' })
+  expect(parseCustomColor('high theme')).toEqual({ key: 'color_high', value: '' })
+  for (const bad of ['', 'background', 'sky blue', 'text red extra']) {
+    expect(parseCustomColor(bad)).toBeNull()
+  }
 })

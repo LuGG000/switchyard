@@ -212,12 +212,36 @@ test('the style page shows the palettes, a preview and the colors in use, and le
   for (const key of ['colors-default', 'colors-dark', 'colors-light', 'back']) {
     expect(await ui.find({ key })).toBeDefined()
   }
-  expect(await ui.find({ type: 'Text', text: /#1e1e1e/ })).toBeDefined()
+  expect(JSON.stringify(await ui.drawn())).toContain('"value":"#1e1e1e"')
   expect(await ui.find({ type: 'Text', text: /from 90%/ })).toBeDefined()
   expect(await ui.find({ key: 'mode-auto' })).toBeUndefined()
 
   await ui.press({ key: 'back' })
   expect(await ui.find({ key: 'mode-auto' })).toBeDefined()
   expect(await ui.find({ key: 'to-style' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a color can be picked, typed in, or cleared on the style page', async ($, on) => {
+  const custom = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, colors: { ...COLORS, text: '#abcdef' } })
+  const calls = world(on, argv => (argv[1] === 'config' && argv[2] === 'set' ? { exitCode: 0, stdout: '', stderr: '' } : argv[1] === 'config' ? { exitCode: 0, stdout: custom, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
+  await runCommand($, 'switchyard', 'style')
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  expect(await ui.find({ key: 'color-background' })).toBeDefined()
+  expect(await ui.find({ key: 'custom-color' })).toBeDefined()
+
+  await ui.select({ key: 'color-background', value: 'cyan' })
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_background', 'cyan'])
+
+  await ui.select({ key: 'color-text', value: 'theme' })
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_text', ''])
+
+  await ui.input({ key: 'custom-color', text: 'active #00ff88' })
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_border_active', '#00ff88'])
+
+  const before = calls.length
+  await ui.input({ key: 'custom-color', text: 'nonsense' })
+  expect(calls.length).toBe(before)
   await ui.unmount()
 })

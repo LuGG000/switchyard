@@ -4,11 +4,14 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Page, Settings, Snapshot, Usage } from '../types'
 import { palette } from './palette'
 import {
+  COLOR_SLOTS,
   describeSettings,
   isCoolingDown,
   PALETTES,
   parseCommand,
+  NAMED_COLORS,
   parseConfig,
+  parseCustomColor,
   parseStatus,
   problem,
   resetLabel,
@@ -132,7 +135,10 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Button, Text } = $.ui.resolve(e)
+    const elements = $.ui.resolve(e)
+    const { Box, Button, Text } = elements
+    // Mobile has no text fields or pickers; there the colors are set with the palettes or the command.
+    const fields = 'Input' in elements && 'Select' in elements ? { Input: elements.Input, Select: elements.Select } : null
     const current = await read($, snapshot)
     const shown = await read($, page)
     const now = await $.clock.now()
@@ -179,17 +185,21 @@ export const register: Register = on => {
           onPress={async () => $.ui.toast(await setPalette($, name))}
         />
       )
-      const slots: [string, string][] = settings
-        ? [
-            ['background', settings.colors.background],
-            ['text', settings.colors.text],
-            ['usage low', settings.colors.low],
-            ['usage medium', settings.colors.medium],
-            ['usage high', settings.colors.high],
-            ['active border', settings.colors.border_active],
-            ['other borders', settings.colors.border],
-          ]
-        : []
+      const colorOptions = (value: string) => [
+        { value: 'theme', label: 'theme' },
+        ...NAMED_COLORS.map(name => ({ value: name, label: name })),
+        // A color typed in, such as a hex value, stays selectable.
+        ...(value !== '' && !(NAMED_COLORS as readonly string[]).includes(value) ? [{ value, label: value }] : []),
+      ]
+      const pick = async (key: string, value: string) => $.ui.toast(await setSetting($, key, value === 'theme' ? '' : value))
+      const custom = async (text: string) => {
+        const parsed = parseCustomColor(text)
+        $.ui.toast(
+          parsed
+            ? await setSetting($, parsed.key, parsed.value)
+            : `Type a color name or hex after the slot: ${COLOR_SLOTS.map(s => s.id).join(', ')}`,
+        )
+      }
 
       return (
         <Box flexDirection="column" gap={1} {...fill}>
@@ -208,16 +218,33 @@ export const register: Register = on => {
             {bar('70-89%  ', 75, '')}
             {bar('from 90% ', 95, '')}
           </Box>
-          <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
-            <Text bold color={colors.text}>Fine tuning</Text>
-            {slots.map(([name, value]) => (
-              <Box key={name}>
-                <Text color={colors.text}>{name.padEnd(14)}</Text>
-                {dim(value === '' ? '(theme)' : value)}
-              </Box>
-            ))}
-            {dim("Change one: switchyard config set color_background '#1e1e1e'")}
-          </Box>
+          {settings && fields && (
+            <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
+              <Text bold color={colors.text}>Colors</Text>
+              {COLOR_SLOTS.map(slot => {
+                const value = slot.get(settings.colors)
+
+                return (
+                  <fields.Select
+                    key={`color-${slot.id}`}
+                    label={`${slot.label.padEnd(14)} `}
+                    options={colorOptions(value)}
+                    value={value === '' ? 'theme' : value}
+                    onSelect={(v: string) => pick(slot.key, v)}
+                  />
+                )
+              })}
+              <fields.Input
+                key="custom-color"
+                label="Custom "
+                placeholder="slot color, e.g. background #1e1e1e"
+                submitLabel="apply"
+                onSubmit={custom}
+              />
+              {dim(`slots: ${COLOR_SLOTS.map(s => s.id).join(', ')}; color: a name, hex or theme`)}
+            </Box>
+          )}
+          {settings && !fields && dim("Set a color with: switchyard config set color_background '#1e1e1e'")}
         </Box>
       )
     }
