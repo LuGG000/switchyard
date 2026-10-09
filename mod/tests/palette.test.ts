@@ -12,7 +12,7 @@ test('without colors the pane follows the theme', async () => {
     low: 'success',
     medium: 'warning',
     high: 'error',
-    borderActive: 'success',
+    borderActive: 'green',
     border: 'subtle',
   }
   expect(palette(null)).toEqual(theme)

@@ -228,13 +228,22 @@ export const COLOR_SLOTS = [
 /** The color names offered in the pickers; any other color is typed in. */
 export const NAMED_COLORS = ['white', 'black', 'gray', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan'] as const
 
-/** Reads `<slot> <color>` typed into the custom field; `theme` clears the color. Null when it is not that. */
-export function parseCustomColor(text: string): { key: string; value: string } | null {
-  const [id, color, ...rest] = text.trim().split(/\s+/)
-  const slot = COLOR_SLOTS.find(s => s.id === id?.toLowerCase())
-  if (!slot || !color || rest.length > 0) {
+/** Words that clear a color, so the default applies. */
+const CLEARS = ['default', 'theme']
+
+/**
+ * Reads what was typed into the color field. A single color (`#00ff88`, `red`)
+ * is for the chosen slot, `<slot> <color>` names its slot; a bare six-digit hex
+ * gets its `#`. Null when it is neither.
+ */
+export function parseColorEntry(text: string, chosen: (typeof COLOR_SLOTS)[number]['key']): { key: string; value: string } | null {
+  const words = text.trim().split(/\s+/).filter(Boolean)
+  const slot = words.length === 2 ? COLOR_SLOTS.find(s => s.id === words[0]?.toLowerCase()) : undefined
+  const color = words.length === 2 ? (slot ? words[1] : undefined) : words.length === 1 ? words[0] : undefined
+  if (!color) {
     return null
   }
+  const value = CLEARS.includes(color.toLowerCase()) ? '' : /^[0-9a-f]{6}$/i.test(color) ? `#${color}` : color
 
-  return { key: slot.key, value: color.toLowerCase() === 'theme' ? '' : color }
+  return { key: slot?.key ?? chosen, value }
 }

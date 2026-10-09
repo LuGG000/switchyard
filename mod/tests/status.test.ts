@@ -5,7 +5,7 @@ import {
   parseConfig,
   parseStatus,
   parseCommand,
-  parseCustomColor,
+  parseColorEntry,
   problem,
   resetLabel,
   usageBar,
@@ -116,11 +116,21 @@ test('the settings are described in a sentence', async () => {
   expect(describeSettings({ mode: 'ask', carry_context: true, colors: NO_COLORS })).toBe('At a limit: ask (asks in the terminal). Conversation: taken along.')
 })
 
-test('a typed color names a slot and a color', async () => {
-  expect(parseCustomColor('background #1e1e1e')).toEqual({ key: 'color_background', value: '#1e1e1e' })
-  expect(parseCustomColor('  ACTIVE   magenta ')).toEqual({ key: 'color_border_active', value: 'magenta' })
-  expect(parseCustomColor('high theme')).toEqual({ key: 'color_high', value: '' })
-  for (const bad of ['', 'background', 'sky blue', 'text red extra']) {
-    expect(parseCustomColor(bad)).toBeNull()
+test('a typed color is for the chosen slot unless it names its own', async () => {
+  expect(parseColorEntry('#00ff88', 'color_border_active')).toEqual({ key: 'color_border_active', value: '#00ff88' })
+  expect(parseColorEntry(' 1E1E1E ', 'color_background')).toEqual({ key: 'color_background', value: '#1E1E1E' })
+  expect(parseColorEntry('magenta', 'color_text')).toEqual({ key: 'color_text', value: 'magenta' })
+  expect(parseColorEntry('background #1e1e1e', 'color_text')).toEqual({ key: 'color_background', value: '#1e1e1e' })
+  expect(parseColorEntry('  ACTIVE   magenta ', 'color_text')).toEqual({ key: 'color_border_active', value: 'magenta' })
+})
+
+test('default and theme clear a color', async () => {
+  expect(parseColorEntry('default', 'color_high')).toEqual({ key: 'color_high', value: '' })
+  expect(parseColorEntry('high theme', 'color_text')).toEqual({ key: 'color_high', value: '' })
+})
+
+test('entries that are neither a color nor a slot with a color are refused', async () => {
+  for (const bad of ['', '   ', 'sky blue', 'nope red', 'background red extra']) {
+    expect(parseColorEntry(bad, 'color_text')).toBeNull()
   }
 })

@@ -12,9 +12,10 @@ One command, `/switchyard`, opens a pane with two pages:
   and **Refresh** are at the top, and a **Close** button next to them (the small close
   mark in the corner is drawn by Claude Code and cannot be resized by a mod).
 - **Style:** palettes (theme, dark, light), a preview of the usage colors and an editor for
-  every color: click the color to change, then a new value (theme or a common color name,
-  shown with a swatch; all of it works with the mouse), plus a field for any other color (type
-  the slot and the color, for example `background #1e1e1e`). **Back** returns to the
+  every color: click the color to change, then a new value (`default` or a common color name,
+  shown with a swatch, the current one ticked; all of it works with the mouse), plus a field
+  for any other color: type a hex code such as `#00ff88` for the chosen color (or
+  `<slot> <color>`, for example `background #1e1e1e`). **Back** returns to the
   overview.
 
 For the keyboard the command takes arguments:
@@ -42,21 +43,21 @@ The pane follows your Claude theme. The colors are set in switchyard, the same
 place as the other settings, so the Claude theme and other mods are not touched:
 
 ```
-switchyard config colors dark                     # a palette: default (theme), dark or light
+switchyard config colors dark                     # a palette: default, dark or light
 switchyard config set color_background '#1e1e1e'  # a single color
-switchyard config set color_background ''         # back to the theme's
+switchyard config set color_background ''         # back to the default
 ```
 
-The Style page does the same with buttons, pickers and a field. A color is a theme color
-(`success`, `warning`, `error`, `subtle`, ...), a color name or hex; empty means
-the theme's.
+The Style page does the same with buttons and a field. A color is a theme color
+(`success`, `warning`, `error`, `subtle`, ...), a color name or hex such as `#00ff88`; empty means
+the default (see the table).
 
 | Setting | Default | Colors |
 | --- | --- | --- |
 | `color_background` | engine's | background of the whole pane |
 | `color_text` | theme | text |
 | `color_low` / `color_medium` / `color_high` | success / warning / error | usage bars below 70%, 70-89%, from 90% |
-| `color_border_active` | success | border and name of the active account |
+| `color_border_active` | green | border and name of the active account |
 | `color_border` | subtle | border of the other cards |
 
 The buttons are drawn by Claude Code and keep its look.

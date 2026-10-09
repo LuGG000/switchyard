@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Page, Settings, Snapshot, Usage } from '../types'
-import { palette } from './palette'
+import { DEFAULT_COLOR, palette } from './palette'
 import {
   COLOR_SLOTS,
   describeSettings,
@@ -11,7 +11,7 @@ import {
   parseCommand,
   NAMED_COLORS,
   parseConfig,
-  parseCustomColor,
+  parseColorEntry,
   parseStatus,
   problem,
   resetLabel,
@@ -188,17 +188,17 @@ export const register: Register = on => {
       const choice = (name: string) => (
         <Button
           key={`colors-${name}`}
-          label={name === 'default' ? 'theme' : name}
+          label={name}
           onPress={async () => $.ui.toast(await setPalette($, name))}
         />
       )
-      const pick = async (key: string, value: string) => $.ui.toast(await setSetting($, key, value === 'theme' ? '' : value))
+      const pick = async (key: string, value: string) => $.ui.toast(await setSetting($, key, value === 'default' ? '' : value))
       const custom = async (text: string) => {
-        const parsed = parseCustomColor(text)
+        const parsed = parseColorEntry(text, chosen.key)
         $.ui.toast(
           parsed
             ? await setSetting($, parsed.key, parsed.value)
-            : `Type a color name or hex after the slot: ${COLOR_SLOTS.map(s => s.id).join(', ')}`,
+            : 'Type a hex code such as #00ff88 or a color name, or "<slot> <color>".',
         )
       }
 
@@ -234,15 +234,15 @@ export const register: Register = on => {
                   />
                 ))}
               </Box>
-              {dim(`${chosen.label}: ${chosenValue === '' ? 'theme' : chosenValue}`)}
+              {dim(`${chosen.label}: ${chosenValue === '' ? `default (${DEFAULT_COLOR[chosen.id] ?? 'engine'})` : chosenValue}`)}
               <Box gap={1} flexWrap="wrap">
-                {['theme', ...NAMED_COLORS].map(name => {
-                  const isCurrent = name === 'theme' ? chosenValue === '' : chosenValue === name
+                {['default', ...NAMED_COLORS].map(name => {
+                  const isCurrent = name === 'default' ? chosenValue === '' : chosenValue.toLowerCase() === name
 
                   return (
-                    <Button key={`pick-${name}`} onPress={() => pick(chosen.key, name)}>
+                    <Button key={`pick-${name}`} variant={isCurrent ? 'primary' : undefined} onPress={() => pick(chosen.key, name)}>
                       {isCurrent ? '✓ ' : ''}
-                      <Text color={name === 'theme' ? undefined : name}>■</Text> {name}
+                      <Text color={name === 'default' ? DEFAULT_COLOR[chosen.id] : name}>■</Text> {name}
                     </Button>
                   )
                 })}
@@ -250,13 +250,13 @@ export const register: Register = on => {
               {Input && (
                 <Input
                   key="custom-color"
-                  label="Any other "
-                  placeholder="slot color, e.g. background #1e1e1e"
+                  label={`Hex for ${chosen.label} `}
+                  placeholder="#rrggbb, a color name, or default"
                   submitLabel="apply"
                   onSubmit={custom}
                 />
               )}
-              {dim(Input ? `slots: ${COLOR_SLOTS.map(s => s.id).join(', ')}; color: a name, hex or theme` : "Any other color: switchyard config set color_background '#1e1e1e'")}
+              {dim(Input ? `Applies to "${chosen.label}". Other slot: "<slot> <color>" with ${COLOR_SLOTS.map(s => s.id).join(', ')}.` : "Any other color: switchyard config set color_background '#1e1e1e'")}
             </Box>
           )}
         </Box>

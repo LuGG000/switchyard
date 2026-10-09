@@ -235,14 +235,14 @@ test('a color can be chosen by button, typed in, or cleared on the style page', 
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_background', 'cyan'])
 
   await ui.press({ key: 'slot-text' })
-  await ui.press({ key: 'pick-theme' })
+  await ui.press({ key: 'pick-default' })
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_text', ''])
 
   await ui.input({ key: 'custom-color', text: 'active #00ff88' })
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_border_active', '#00ff88'])
 
   const before = calls.length
-  await ui.input({ key: 'custom-color', text: 'nonsense' })
+  await ui.input({ key: 'custom-color', text: 'two words here' })
   expect(calls.length).toBe(before)
   await ui.unmount()
 })
@@ -271,9 +271,33 @@ test('the style page marks the current value of the chosen color and follows the
   await runCommand($, 'switchyard', 'style')
 
   const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
-  expect((await ui.find({ key: 'pick-theme' }))?.text).toMatch(/✓/)
+  expect((await ui.find({ key: 'pick-default' }))?.text).toMatch(/✓/)
   await ui.press({ key: 'slot-text' })
   expect((await ui.find({ key: 'pick-red' }))?.text).toMatch(/✓/)
-  expect((await ui.find({ key: 'pick-theme' }))?.text).not.toMatch(/✓/)
+  expect((await ui.find({ key: 'pick-default' }))?.text).not.toMatch(/✓/)
+  await ui.unmount()
+})
+
+test('a hex code typed on the style page applies to the chosen color', async ($, on) => {
+  const calls = world(on, argv => (argv[1] === 'config' && argv[2] === 'set' ? { exitCode: 0, stdout: '', stderr: '' } : argv[1] === 'config' ? { exitCode: 0, stdout: CONFIG, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
+  await runCommand($, 'switchyard', 'style')
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  await ui.press({ key: 'slot-active' })
+  await ui.input({ key: 'custom-color', text: '#00ff88' })
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_border_active', '#00ff88'])
+
+  await ui.press({ key: 'slot-medium' })
+  await ui.input({ key: 'custom-color', text: 'ffaa00' })
+  expect(calls).toContainEqual(['switchyard', 'config', 'set', 'color_medium', '#ffaa00'])
+  await ui.unmount()
+})
+
+test('the active account is green by default', async ($, on) => {
+  world(on, withConfig)
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  expect(JSON.stringify(await ui.drawn())).toContain('"borderColor":"green"')
   await ui.unmount()
 })

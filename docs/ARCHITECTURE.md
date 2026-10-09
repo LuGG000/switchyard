@@ -44,7 +44,7 @@ the hooks reach the launcher through the state file (see Decisions).
 | `strategy` | `sequential` | `sequential`, `most-headroom`, `round-robin` |
 | `continue_prompt` | empty | sent as the first message of a resumed session |
 | `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off |
-| `color_background`, `color_text`, `color_low`, `color_medium`, `color_high`, `color_border_active`, `color_border` | empty = theme | colors of the mod pane: a theme key (`success`, `subtle`, ...), a color name or hex; `config colors` with default, dark or light sets all |
+| `color_background`, `color_text`, `color_low`, `color_medium`, `color_high`, `color_border_active`, `color_border` | empty = default (the active border is green, the rest follows the theme) | colors of the mod pane: a theme key (`success`, `subtle`, ...), a color name or hex; `config colors` with default, dark or light sets all |
 | `source_dir` | empty = `~/.claude` | claude config dir whose entries are shared |
 | `link` | projects, settings.json, CLAUDE.md, skills, agents, commands, plugins | entries shared with every profile |
 

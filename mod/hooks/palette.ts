@@ -1,6 +1,6 @@
-import type { Colors } from '../types'
+import type { ColorSlot, Colors } from '../types'
 
-/** The colors of the accounts pane, with the theme's colors where nothing is set. */
+/** The colors of the accounts pane, with the defaults where nothing is set. */
 export type Palette = {
   /** Background of the whole pane; undefined keeps the engine's. */
   background: string | undefined
@@ -14,8 +14,20 @@ export type Palette = {
   border: string
 }
 
-/** The theme colors used where a setting is empty, so the pane follows the theme. */
-const THEME = { low: 'success', medium: 'warning', high: 'error', borderActive: 'success', border: 'subtle' } as const
+/**
+ * What an empty setting draws. Theme keys follow the person's Claude theme; the
+ * active account is plain green. No entry means the engine's own background or
+ * the theme's text color.
+ */
+export const DEFAULT_COLOR: Record<ColorSlot, string | undefined> = {
+  background: undefined,
+  text: undefined,
+  low: 'success',
+  medium: 'warning',
+  high: 'error',
+  active: 'green',
+  border: 'subtle',
+}
 
 const unset = (value: string | undefined): string | undefined => (value === undefined || value.trim() === '' ? undefined : value.trim())
 
@@ -24,10 +36,10 @@ export function palette(colors: Colors | null | undefined): Palette {
   return {
     background: unset(colors?.background),
     text: unset(colors?.text),
-    low: unset(colors?.low) ?? THEME.low,
-    medium: unset(colors?.medium) ?? THEME.medium,
-    high: unset(colors?.high) ?? THEME.high,
-    borderActive: unset(colors?.border_active) ?? THEME.borderActive,
-    border: unset(colors?.border) ?? THEME.border,
+    low: unset(colors?.low) ?? DEFAULT_COLOR.low ?? '',
+    medium: unset(colors?.medium) ?? DEFAULT_COLOR.medium ?? '',
+    high: unset(colors?.high) ?? DEFAULT_COLOR.high ?? '',
+    borderActive: unset(colors?.border_active) ?? DEFAULT_COLOR.active ?? '',
+    border: unset(colors?.border) ?? DEFAULT_COLOR.border ?? '',
   }
 }
