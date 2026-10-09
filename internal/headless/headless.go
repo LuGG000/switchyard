@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/LuGG000/switchyard/internal/detector"
@@ -77,7 +76,7 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 		}
 		attemptArgs = args
 		if r.CarryContext {
-			attemptArgs = resumeArgs(args, sessionID)
+			attemptArgs = launcher.ResumeArgs(args, sessionID)
 		}
 		_, _ = fmt.Fprintf(r.Notice, "switchyard: profile %s reached its limit, continuing with %s\n", current.Name, next.Name)
 		current = next
@@ -104,53 +103,10 @@ func (r *Runner) markLimited(current profiles.Profile, result detector.Result) (
 		return profiles.Profile{}, err
 	}
 	h := hooks.Handler{Store: r.Store, Profile: current.Name, Now: r.Now}
-	if err := h.StopFailure(); err != nil {
+	if err := h.MarkLimited(); err != nil {
 		return profiles.Profile{}, err
 	}
-
-	st, err := r.Store.Read()
-	if err != nil {
-		return profiles.Profile{}, err
-	}
-	candidates := make([]selector.Candidate, len(r.Profiles))
-	for i, p := range r.Profiles {
-		candidates[i] = selector.Candidate{Name: p.Name, State: st.Profiles[p.Name]}
-	}
-	name, err := selector.Next(r.Strategy, current.Name, candidates, now)
-	if err != nil {
-		return profiles.Profile{}, err
-	}
-	for _, p := range r.Profiles {
-		if p.Name == name {
-			return p, nil
-		}
-	}
-	return profiles.Profile{}, fmt.Errorf("selected profile %q does not exist", name)
-}
-
-// resumeArgs returns args continuing the conversation: the session with the
-// given ID, or the most recent one of the directory if the ID is unknown. Any
-// resume option of the caller is replaced. An option without a value, such as a
-// bare --resume, would swallow a following prompt; headless runs always have
-// an explicit session or none.
-func resumeArgs(args []string, sessionID string) []string {
-	kept := make([]string, 0, len(args)+2)
-	for i := 0; i < len(args); i++ {
-		switch a := args[i]; {
-		case a == "--continue" || a == "-c":
-		case a == "--resume" || a == "-r" || a == "--session-id":
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				i++
-			}
-		case strings.HasPrefix(a, "--resume=") || strings.HasPrefix(a, "--session-id="):
-		default:
-			kept = append(kept, a)
-		}
-	}
-	if sessionID == "" {
-		return append([]string{"--continue"}, kept...)
-	}
-	return append([]string{"--resume", sessionID}, kept...)
+	return selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, now)
 }
 
 // replayableStdin hands every attempt the same input. A terminal is passed

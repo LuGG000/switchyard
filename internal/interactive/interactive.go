@@ -1,0 +1,283 @@
+// Package interactive runs claude in the terminal and moves to the next
+// profile when the current one hits its limit or reaches the usage threshold.
+//
+// The hooks claude calls (see the hooks package) write a switch request into
+// the state file. The runner polls for it, ends claude, decides according to
+// the mode (automatically or by asking in the terminal) and starts claude again
+// in the next profile, resuming the conversation if wanted.
+package interactive
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/LuGG000/switchyard/internal/config"
+	"github.com/LuGG000/switchyard/internal/hooks"
+	"github.com/LuGG000/switchyard/internal/launcher"
+	"github.com/LuGG000/switchyard/internal/profiles"
+	"github.com/LuGG000/switchyard/internal/selector"
+	"github.com/LuGG000/switchyard/internal/state"
+)
+
+// ColdCacheHint warns that a resumed conversation is processed again by the new account.
+const ColdCacheHint = "Note: the new account processes the whole conversation again (cold prompt cache) and it counts against its limit."
+
+// Runner runs claude interactively over a set of profiles.
+type Runner struct {
+	// Launcher is the template for every launch; its Stop and StopGrace are set per launch.
+	Launcher launcher.Launcher
+	Store    *state.Store
+	// Profiles are the profiles a run may move to.
+	Profiles []profiles.Profile
+	// Mode is config.ModeAuto or config.ModeAsk.
+	Mode string
+	// Strategy chooses the next profile, see the selector package.
+	Strategy string
+	// CarryContext is the default for resuming the conversation in the next profile.
+	CarryContext bool
+	// ContinuePrompt is sent as the first message of a resumed conversation. Empty sends nothing.
+	ContinuePrompt string
+	// Prepare records p as in use and returns the final claude arguments for it.
+	Prepare func(p profiles.Profile, args []string) ([]string, error)
+	// Now returns the current time.
+	Now func() time.Time
+	// Poll is how often the state is checked for a switch request.
+	Poll time.Duration
+	// StopGrace is how long claude gets to exit when it is ended.
+	StopGrace time.Duration
+	// In and Out are the terminal used for questions and notices.
+	In  io.Reader
+	Out io.Writer
+
+	prompt *bufio.Reader
+}
+
+// Run runs claude with args for start. It returns claude's exit code when claude
+// ends by itself, 0 when the user quits at a question, and an error if no
+// profile is left in automatic mode.
+func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string) (int, error) {
+	r.prompt = bufio.NewReader(r.In)
+	current, attemptArgs := start, args
+	for {
+		req, code, err := r.launch(ctx, current, attemptArgs)
+		if err != nil || req == nil {
+			return code, err
+		}
+		h := hooks.Handler{Store: r.Store, Profile: current.Name, Now: r.Now}
+		if err := h.MarkLimited(); err != nil {
+			return 0, err
+		}
+		next, carry, err := r.decide(ctx, current, *req)
+		if err != nil {
+			return 0, err
+		}
+		if next == nil {
+			return 0, nil
+		}
+		current, attemptArgs = *next, args
+		if carry {
+			attemptArgs = launcher.ResumeArgs(args, req.SessionID)
+			if r.ContinuePrompt != "" {
+				attemptArgs = append(attemptArgs, r.ContinuePrompt)
+			}
+		}
+	}
+}
+
+// launch runs claude for p until it exits or a switch request for p ends it. The
+// request is returned in the second case.
+func (r *Runner) launch(ctx context.Context, p profiles.Profile, args []string) (*state.SwitchRequest, int, error) {
+	claudeArgs, err := r.Prepare(p, args)
+	if err != nil {
+		return nil, 0, err
+	}
+	stop := make(chan struct{})
+	l := r.Launcher
+	l.Stop, l.StopGrace = stop, r.StopGrace
+
+	since := r.Now()
+	watchCtx, cancel := context.WithCancel(ctx)
+	found := make(chan state.SwitchRequest, 1)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		if req, ok := r.watch(watchCtx, p, since); ok {
+			found <- req
+			close(stop)
+		}
+	})
+	code, err := l.Run(ctx, p, claudeArgs)
+	cancel()
+	wg.Wait()
+
+	select {
+	case req := <-found:
+		return &req, code, err
+	default:
+		return nil, code, err
+	}
+}
+
+// watch waits for a switch request for p made after since, clears it and
+// returns it. A threshold request is only honored if there is a profile to move
+// to, so a working session is not ended for nothing.
+func (r *Runner) watch(ctx context.Context, p profiles.Profile, since time.Time) (state.SwitchRequest, bool) {
+	ticker := time.NewTicker(r.Poll)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return state.SwitchRequest{}, false
+		case <-ticker.C:
+		}
+		st, err := r.Store.Read()
+		req := st.SwitchRequest
+		if err != nil || req == nil || req.Profile != p.Name || req.RequestedAt.Before(since) {
+			continue
+		}
+		if req.Reason == state.ReasonThreshold && !r.hasAlternative(st, p) {
+			continue
+		}
+		var taken *state.SwitchRequest
+		_ = r.Store.Update(func(st *state.State) error {
+			if st.SwitchRequest != nil && *st.SwitchRequest == *req {
+				taken, st.SwitchRequest = st.SwitchRequest, nil
+			}
+			return nil
+		})
+		if taken != nil {
+			return *taken, true
+		}
+	}
+}
+
+// hasAlternative reports whether a profile other than p is out of cooldown.
+func (r *Runner) hasAlternative(st state.State, p profiles.Profile) bool {
+	now := r.Now()
+	for _, other := range r.Profiles {
+		if other.Name != p.Name && !st.Profiles[other.Name].CooldownUntil.After(now) {
+			return true
+		}
+	}
+	return false
+}
+
+// decide chooses the profile to continue with, and whether to carry the
+// conversation over. A nil profile means the user quit.
+func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state.SwitchRequest) (*profiles.Profile, bool, error) {
+	for {
+		next, err := selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, r.Now())
+		var locked *selector.AllLockedError
+		if err != nil && !errors.As(err, &locked) {
+			return nil, false, err
+		}
+		if r.Mode == config.ModeAuto {
+			if locked != nil {
+				return nil, false, err
+			}
+			r.printf("switchyard: profile %s %s, continuing with %s\n", current.Name, describe(req.Reason), next.Name)
+			if r.CarryContext {
+				r.printf("%s\n", ColdCacheHint)
+			}
+			return &next, r.CarryContext, nil
+		}
+
+		answer, err := r.ask(ctx, current, req, next, locked)
+		if err != nil {
+			return nil, false, err
+		}
+		switch answer {
+		case "y":
+			return &next, true, nil
+		case "f":
+			return &next, false, nil
+		case "w":
+			until := r.waitTarget(current, locked)
+			r.printf("switchyard: waiting until %s\n", until.Local().Format("15:04"))
+			if err := r.sleepUntil(ctx, until); err != nil {
+				return nil, false, err
+			}
+		default:
+			return nil, false, nil
+		}
+	}
+}
+
+// ask shows the situation and returns the answer: "y" switch and carry the
+// conversation, "f" switch with a new conversation, "w" wait, "q" quit. Without
+// a usable answer (end of input, unknown key) it returns "q".
+func (r *Runner) ask(ctx context.Context, current profiles.Profile, req state.SwitchRequest, next profiles.Profile, locked *selector.AllLockedError) (string, error) {
+	r.printf("\nswitchyard: profile %s %s.\n", current.Name, describe(req.Reason))
+	if locked != nil {
+		r.printf("All profiles are at their limit; the first one is available again at %s.\n[w] wait  [q] quit: ",
+			locked.EarliestReset.Local().Format("15:04"))
+	} else {
+		r.printf("%s\n", ColdCacheHint)
+		r.printf("Switch to %s? [y] continue the conversation  [f] new conversation  [w] wait for %s  [q] quit (Enter = %s): ",
+			next.Name, current.Name, r.defaultAnswer())
+	}
+
+	line := make(chan string, 1)
+	go func() {
+		s, _ := r.prompt.ReadString('\n')
+		line <- s
+	}()
+	var s string
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case s = <-line:
+	}
+	answer := strings.ToLower(strings.TrimSpace(s))
+	if answer == "" && strings.HasSuffix(s, "\n") && locked == nil {
+		answer = r.defaultAnswer()
+	}
+	if answer == "w" || (locked == nil && (answer == "y" || answer == "f")) {
+		return answer, nil
+	}
+	return "q", nil
+}
+
+func (r *Runner) defaultAnswer() string {
+	if r.CarryContext {
+		return "y"
+	}
+	return "f"
+}
+
+// waitTarget is when waiting ends: the first profile available again if all
+// are locked, otherwise the end of the current profile's cooldown.
+func (r *Runner) waitTarget(current profiles.Profile, locked *selector.AllLockedError) time.Time {
+	if locked != nil {
+		return locked.EarliestReset
+	}
+	st, _ := r.Store.Read()
+	return st.Profiles[current.Name].CooldownUntil
+}
+
+func (r *Runner) sleepUntil(ctx context.Context, t time.Time) error {
+	timer := time.NewTimer(t.Sub(r.Now()))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func describe(reason string) string {
+	if reason == state.ReasonThreshold {
+		return "reached its usage threshold"
+	}
+	return "reached its limit"
+}
+
+func (r *Runner) printf(format string, a ...any) {
+	_, _ = fmt.Fprintf(r.Out, format, a...)
+}

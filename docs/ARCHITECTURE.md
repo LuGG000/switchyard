@@ -18,12 +18,13 @@ decisions taken while building it. Where the two differ, this file wins.
 | `internal/selector` | picks the next profile (sequential, most-headroom, round-robin), honors cooldowns |
 | `internal/detector` | recognizes a rate limit in headless output (`stream-json` events, error result, plain text) |
 | `internal/headless` | `claude -p` failover loop: detect limit, cooldown, next profile, resume |
+| `internal/interactive` | interactive failover loop: poll for a switch request, end claude, ask or switch, relaunch with resume |
 | `internal/hooks` | statusLine and StopFailure hook handlers, builds the `--settings` JSON |
 | `internal/doctor` | read-only health checks |
 | `fakeclaude` | test double for the `claude` executable (see `docs/DEVELOPMENT.md`) |
 
-Not yet written: `internal/ipc`, `internal/platform`, the
-interactive failover loop (phase 4) and the mod (phase 5).
+Not yet written: `internal/platform` and the mod (phase 5). There is no `internal/ipc`:
+the hooks reach the launcher through the state file (see Decisions).
 
 ## Files and directories
 
@@ -38,20 +39,21 @@ interactive failover loop (phase 4) and the mod (phase 5).
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `mode` | `ask` | `ask` or `auto` failover (used from phase 3/4) |
+| `mode` | `ask` | `ask` or `auto` failover (headless runs are always automatic) |
 | `carry_context` | `true` | continue the current conversation when switching |
 | `strategy` | `sequential` | `sequential`, `most-headroom`, `round-robin` |
-| `continue_prompt` | empty | sent after a resumed session starts (phase 4) |
-| `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off (phase 4) |
+| `continue_prompt` | empty | sent as the first message of a resumed session |
+| `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off |
 | `source_dir` | empty = `~/.claude` | claude config dir whose entries are shared |
 | `link` | projects, settings.json, CLAUDE.md, skills, agents, commands, plugins | entries shared with every profile |
 
 ## State (`state.json`, schema version 1)
 
-`active` (profile name) and `profiles.<name>` with `last_used`,
-`cooldown_until`, `five_hour` and `seven_day` (`used_percent`, `resets_at`,
-`updated_at`). New fields are added without bumping the version; a file with a
-newer version is rejected.
+`active` (profile name), `profiles.<name>` with `last_used`, `cooldown_until`,
+`five_hour` and `seven_day` (`used_percent`, `resets_at`, `updated_at`), and
+`switch_request` (`profile`, `reason`, `session_id`, `requested_at`; written by a
+hook, cleared by the launcher). New fields are added without bumping the
+version; a file with a newer version is rejected.
 
 ## `status --json` (schema 1)
 
@@ -112,3 +114,22 @@ Consumers must check `schema` first.
   Stdin is recorded and replayed so a piped prompt survives the repeat; output of
   the limited attempt has already been passed on. The signals are provisional
   until a real limit is observed (spike #6).
+- **Interactive failover.** `run` and `switch` start claude through
+  `internal/interactive`. The StopFailure hook (cooldown, `reason: rate_limit`)
+  and the statusLine hook (`reason: threshold` once the five-hour usage reaches
+  `proactive_threshold`) write a `switch_request` with the session ID into
+  `state.json`; the launcher polls it every 250 ms. This replaces the planned
+  socket / named pipe: no extra dependency, no platform-specific code, and
+  the state file is already the shared, locked channel. A request counts only
+  for the profile that was launched and only if it is newer than the launch. A
+  threshold request is ignored while no other profile is out of cooldown, so a
+  working session is not ended for nothing.
+  On a request the launcher ends claude (SIGTERM, kill after 5 s; Windows kills
+  at once), puts the profile into cooldown and asks the selector for the next
+  one. `auto` switches and prints a notice. `ask` shows the cold-cache hint and
+  asks: `y` switch and continue the conversation, `f` switch with a new one,
+  `w` wait for the reset, `q` quit; Enter follows `carry_context`. If every
+  profile is locked, `auto` fails with the earliest reset time and `ask` offers
+  wait or quit. A carried conversation relaunches with `--resume <session_id>`
+  (or `--continue` without an ID) plus `continue_prompt` as the first message.
+  The termination mechanism is provisional until spike #7.

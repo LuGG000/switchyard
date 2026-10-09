@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
+	"time"
 
 	"github.com/LuGG000/switchyard/internal/claudeenv"
 	"github.com/LuGG000/switchyard/internal/profiles"
@@ -23,6 +25,11 @@ type Launcher struct {
 	Stdin   io.Reader
 	Stdout  io.Writer
 	Stderr  io.Writer
+	// Stop, when closed, ends the running claude: it is asked to terminate and
+	// killed if it is still alive after StopGrace. Run then returns its exit code.
+	Stop <-chan struct{}
+	// StopGrace is how long claude gets to exit after being asked to.
+	StopGrace time.Duration
 }
 
 // Run starts claude with args for profile p and waits for it to exit. It
@@ -52,10 +59,25 @@ func (l *Launcher) Run(ctx context.Context, p profiles.Profile, args []string) (
 			return exitCode(err)
 		case <-interrupts:
 			// Swallow: claude received the same signal.
+		case <-l.Stop:
+			return exitCode(l.stop(cmd.Process, done))
 		case <-ctx.Done():
 			_ = cmd.Process.Kill()
 			return exitCode(<-done)
 		}
+	}
+}
+
+// stop asks the process to terminate, kills it after StopGrace and returns the
+// result of its Wait.
+func (l *Launcher) stop(p *os.Process, done <-chan error) error {
+	_ = terminate(p)
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(l.StopGrace):
+		_ = p.Kill()
+		return <-done
 	}
 }
 
@@ -68,4 +90,29 @@ func exitCode(err error) (int, error) {
 		return exitErr.ExitCode(), nil
 	}
 	return 0, fmt.Errorf("wait for claude: %w", err)
+}
+
+// ResumeArgs returns args continuing a conversation: the session with the
+// given ID, or the most recent one of the directory if the ID is empty. Any
+// resume option in args is replaced. An option without a value, such as a bare
+// --resume, would swallow a following prompt; switchyard always resumes an
+// explicit session or none.
+func ResumeArgs(args []string, sessionID string) []string {
+	kept := make([]string, 0, len(args)+2)
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--continue" || a == "-c":
+		case a == "--resume" || a == "-r" || a == "--session-id":
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				i++
+			}
+		case strings.HasPrefix(a, "--resume=") || strings.HasPrefix(a, "--session-id="):
+		default:
+			kept = append(kept, a)
+		}
+	}
+	if sessionID == "" {
+		return append([]string{"--continue"}, kept...)
+	}
+	return append([]string{"--resume", sessionID}, kept...)
 }

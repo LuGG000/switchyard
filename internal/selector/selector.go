@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LuGG000/switchyard/internal/config"
+	"github.com/LuGG000/switchyard/internal/profiles"
 	"github.com/LuGG000/switchyard/internal/state"
 )
 
@@ -113,4 +114,26 @@ func earliestReset(candidates []Candidate) time.Time {
 		}
 	}
 	return earliest
+}
+
+// NextProfile picks the profile to continue with after current among list,
+// using the cooldowns and usage in the stored state.
+func NextProfile(store *state.Store, list []profiles.Profile, strategy, current string, now time.Time) (profiles.Profile, error) {
+	st, err := store.Read()
+	if err != nil {
+		return profiles.Profile{}, err
+	}
+	candidates := make([]Candidate, len(list))
+	for i, p := range list {
+		candidates[i] = Candidate{Name: p.Name, State: st.Profiles[p.Name]}
+	}
+	name, err := Next(strategy, current, candidates, now)
+	if err != nil {
+		return profiles.Profile{}, err
+	}
+	i := slices.IndexFunc(list, func(p profiles.Profile) bool { return p.Name == name })
+	if i < 0 {
+		return profiles.Profile{}, fmt.Errorf("selected profile %q does not exist", name)
+	}
+	return list[i], nil
 }

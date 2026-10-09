@@ -11,7 +11,6 @@ import (
 
 	"github.com/LuGG000/switchyard/internal/config"
 	"github.com/LuGG000/switchyard/internal/hooks"
-	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
 	"github.com/LuGG000/switchyard/internal/state"
 )
@@ -56,7 +55,7 @@ func newRunCmd() *cobra.Command {
 			if isHeadless(args) {
 				return runHeadless(cmd, m, store, p, args)
 			}
-			return runClaude(cmd, m, store, p, args)
+			return runInteractive(cmd, m, store, p, args)
 		},
 	}
 	cmd.Flags().StringVarP(&profileName, "profile", "p", "", "profile to use instead of the active one")
@@ -102,29 +101,6 @@ func prepareRun(store *state.Store, p profiles.Profile, args []string) ([]string
 		return nil, err
 	}
 	return withSignalSettings(p, args)
-}
-
-// runClaude records p as active, runs claude and turns a non-zero exit into an exitError.
-func runClaude(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p profiles.Profile, args []string) error {
-	claudeArgs, err := prepareRun(store, p, args)
-	if err != nil {
-		return err
-	}
-	l := &launcher.Launcher{
-		Claude:  m.Claude,
-		Environ: os.Environ(),
-		Stdin:   cmd.InOrStdin(),
-		Stdout:  cmd.OutOrStdout(),
-		Stderr:  cmd.ErrOrStderr(),
-	}
-	code, err := l.Run(cmd.Context(), p, claudeArgs)
-	if err != nil {
-		return err
-	}
-	if code != 0 {
-		return exitError{code: code}
-	}
-	return nil
 }
 
 // withSignalSettings prepends --settings so claude reports usage and rate limit

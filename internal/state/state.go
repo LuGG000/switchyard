@@ -44,11 +44,29 @@ type Profile struct {
 	SevenDay      *Usage    `json:"seven_day,omitempty"`
 }
 
+// Reasons for a SwitchRequest.
+const (
+	// ReasonRateLimit means the profile hit its limit.
+	ReasonRateLimit = "rate_limit"
+	// ReasonThreshold means the profile reached the configured usage threshold.
+	ReasonThreshold = "threshold"
+)
+
+// SwitchRequest asks the launcher that runs a profile to move to another one.
+// A hook process writes it; the launcher polls for it and clears it.
+type SwitchRequest struct {
+	Profile     string    `json:"profile"`
+	Reason      string    `json:"reason"`
+	SessionID   string    `json:"session_id,omitempty"`
+	RequestedAt time.Time `json:"requested_at"`
+}
+
 // State is the content of state.json.
 type State struct {
-	Version  int                `json:"version"`
-	Active   string             `json:"active,omitempty"`
-	Profiles map[string]Profile `json:"profiles"`
+	Version       int                `json:"version"`
+	Active        string             `json:"active,omitempty"`
+	Profiles      map[string]Profile `json:"profiles"`
+	SwitchRequest *SwitchRequest     `json:"switch_request,omitempty"`
 }
 
 // Store reads and writes one state file.

@@ -3,11 +3,10 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/LuGG000/switchyard/internal/interactive"
 	"github.com/LuGG000/switchyard/internal/profiles"
 	"github.com/LuGG000/switchyard/internal/state"
 )
-
-const coldCacheHint = "Note: the new account processes the whole conversation again (cold prompt cache) and it counts against its limit."
 
 func newSwitchCmd() *cobra.Command {
 	var resume, fresh, noLaunch bool
@@ -46,10 +45,10 @@ func newSwitchCmd() *cobra.Command {
 			}
 			claudeArgs := args[1:]
 			if carry {
-				println(cmd, coldCacheHint)
+				println(cmd, interactive.ColdCacheHint)
 				claudeArgs = append([]string{"--continue"}, claudeArgs...)
 			}
-			return runClaude(cmd, m, store, p, claudeArgs)
+			return runInteractive(cmd, m, store, p, claudeArgs)
 		},
 	}
 	cmd.Flags().BoolVar(&resume, "resume", false, "continue the current conversation in the new profile")

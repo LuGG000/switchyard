@@ -7,7 +7,11 @@
 //	FAKE_LOGGED_IN  "true" or "false" for `auth status` (default true)
 //	FAKE_AUTH       authMethod for `auth status` (default claude.ai)
 //	FAKE_LIMIT_DIR  if set and the config dir contains this text, the run hits a
-//	                simulated rate limit: it prints the limit signal and exits 1
+//	                simulated rate limit. Headless (-p): prints the limit signal and
+//	                exits 1. Interactive: calls the StopFailure hook from --settings
+//	                and waits to be ended by the launcher
+//	FAKE_THRESHOLD_DIR  like FAKE_LIMIT_DIR, but an interactive run reports 96%
+//	                of the five-hour window to the statusLine command and waits
 //
 // A normal run prints a JSON report of what the process received, which tests
 // decode to check arguments, config dir and that no credentials leaked.
@@ -48,8 +52,14 @@ func main() {
 		fmt.Println("fakeclaude: login in", os.Getenv("CLAUDE_CONFIG_DIR"))
 		return
 	}
-	if marker := os.Getenv("FAKE_LIMIT_DIR"); marker != "" && strings.Contains(os.Getenv("CLAUDE_CONFIG_DIR"), marker) {
+	headless := slices.Contains(args, "-p") || slices.Contains(args, "--print")
+	switch {
+	case matchesDir("FAKE_LIMIT_DIR") && headless:
 		os.Exit(hitLimit(args))
+	case matchesDir("FAKE_LIMIT_DIR"):
+		os.Exit(interactiveLimit(args))
+	case matchesDir("FAKE_THRESHOLD_DIR") && !headless:
+		os.Exit(interactiveThreshold(args))
 	}
 	report := Report{Args: args, ConfigDir: os.Getenv("CLAUDE_CONFIG_DIR")}
 	for _, name := range credentialVars {
@@ -65,6 +75,13 @@ func main() {
 		os.Exit(70)
 	}
 	os.Exit(code)
+}
+
+// matchesDir reports whether the environment variable name is set and its value
+// is part of the config dir, which selects the profiles a simulation applies to.
+func matchesDir(name string) bool {
+	marker := os.Getenv(name)
+	return marker != "" && strings.Contains(os.Getenv("CLAUDE_CONFIG_DIR"), marker)
 }
 
 func authStatus() int {

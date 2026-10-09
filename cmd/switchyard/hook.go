@@ -44,7 +44,7 @@ func newHookCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return h.StopFailure()
+				return h.StopFailure(cmd.InOrStdin())
 			},
 		},
 	)
@@ -66,5 +66,10 @@ func newHookHandler(profileName string) (*hooks.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &hooks.Handler{Store: store, Profile: p.Name, ProfileDir: p.Dir, Now: time.Now}, nil
+	h := &hooks.Handler{Store: store, Profile: p.Name, ProfileDir: p.Dir, Now: time.Now}
+	// A broken config must not break claude's status line; it only disables the threshold.
+	if cfg, err := loadConfig(); err == nil {
+		h.Threshold = cfg.ProactiveThreshold
+	}
+	return h, nil
 }

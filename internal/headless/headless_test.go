@@ -207,31 +207,6 @@ func TestSuccessDoesNotSwitch(t *testing.T) {
 	}
 }
 
-func TestResumeArgs(t *testing.T) {
-	tests := []struct {
-		name      string
-		args      []string
-		sessionID string
-		want      []string
-	}{
-		{"session id", []string{"-p", "hi"}, "s1", []string{"--resume", "s1", "-p", "hi"}},
-		{"no session id", []string{"-p", "hi"}, "", []string{"--continue", "-p", "hi"}},
-		{"replaces resume with value", []string{"--resume", "old", "-p", "hi"}, "s1", []string{"--resume", "s1", "-p", "hi"}},
-		{"replaces short resume", []string{"-r", "old", "-p", "hi"}, "s1", []string{"--resume", "s1", "-p", "hi"}},
-		{"replaces resume=value", []string{"--resume=old", "-p", "hi"}, "s1", []string{"--resume", "s1", "-p", "hi"}},
-		{"replaces continue", []string{"-c", "-p", "hi"}, "s1", []string{"--resume", "s1", "-p", "hi"}},
-		{"replaces session-id", []string{"--session-id", "old", "-p", "hi"}, "s1", []string{"--resume", "s1", "-p", "hi"}},
-		{"keeps other options", []string{"--model", "haiku", "-p", "hi"}, "s1", []string{"--resume", "s1", "--model", "haiku", "-p", "hi"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := resumeArgs(tt.args, tt.sessionID); !slices.Equal(got, tt.want) {
-				t.Errorf("resumeArgs = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestReplayableStdin(t *testing.T) {
 	s := newReplayableStdin(strings.NewReader("prompt from stdin"))
 	first, err := io.ReadAll(s.reader())

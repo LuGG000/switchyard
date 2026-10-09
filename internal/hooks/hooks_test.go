@@ -214,12 +214,74 @@ func TestStopFailureCooldown(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			if err := h.StopFailure(); err != nil {
+			if err := h.StopFailure(strings.NewReader("")); err != nil {
 				t.Fatal(err)
 			}
 			st, _ := h.Store.Read()
 			if got := st.Profiles["acc1"].CooldownUntil; !got.Equal(tc.want) {
 				t.Errorf("cooldown until %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestStopFailureRequestsSwitchWithSession(t *testing.T) {
+	h := newHandler(t)
+	if err := h.StopFailure(strings.NewReader(`{"session_id":"s1","hook_event_name":"StopFailure"}`)); err != nil {
+		t.Fatal(err)
+	}
+	st, _ := h.Store.Read()
+	want := state.SwitchRequest{Profile: "acc1", Reason: state.ReasonRateLimit, SessionID: "s1", RequestedAt: now}
+	if st.SwitchRequest == nil || *st.SwitchRequest != want {
+		t.Errorf("switch request = %+v, want %+v", st.SwitchRequest, want)
+	}
+}
+
+func TestStopFailureSurvivesGarbageInput(t *testing.T) {
+	h := newHandler(t)
+	if err := h.StopFailure(strings.NewReader("not json")); err != nil {
+		t.Fatal(err)
+	}
+	st, _ := h.Store.Read()
+	if st.SwitchRequest == nil || st.SwitchRequest.SessionID != "" {
+		t.Errorf("switch request = %+v, want one without session", st.SwitchRequest)
+	}
+}
+
+func TestMarkLimitedDoesNotRequestSwitch(t *testing.T) {
+	h := newHandler(t)
+	if err := h.MarkLimited(); err != nil {
+		t.Fatal(err)
+	}
+	st, _ := h.Store.Read()
+	if st.SwitchRequest != nil || !st.Profiles["acc1"].CooldownUntil.After(now) {
+		t.Errorf("state = %+v", st)
+	}
+}
+
+func TestStatuslineThresholdRequestsSwitch(t *testing.T) {
+	tests := []struct {
+		name      string
+		threshold int
+		want      bool
+	}{
+		{"usage below threshold", 80, false},
+		{"usage at threshold", 63, true},
+		{"threshold disabled", 0, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHandler(t)
+			h.Threshold = tc.threshold
+			if err := h.Statusline(strings.NewReader(rateLimitsJSON), &bytes.Buffer{}); err != nil {
+				t.Fatal(err)
+			}
+			st, _ := h.Store.Read()
+			if got := st.SwitchRequest != nil; got != tc.want {
+				t.Fatalf("switch request present = %v, want %v", got, tc.want)
+			}
+			if tc.want && (st.SwitchRequest.Reason != state.ReasonThreshold || st.SwitchRequest.SessionID != "s1") {
+				t.Errorf("switch request = %+v", st.SwitchRequest)
 			}
 		})
 	}

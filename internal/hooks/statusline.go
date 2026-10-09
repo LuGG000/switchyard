@@ -24,6 +24,9 @@ type Handler struct {
 	Profile string
 	// ProfileDir is the profile's claude config dir; the user's statusLine is read from it.
 	ProfileDir string
+	// Threshold is the five-hour usage percentage that asks the launcher to
+	// switch profiles; zero disables it.
+	Threshold int
 	// Now returns the current time.
 	Now func() time.Time
 }
@@ -34,6 +37,7 @@ type window struct {
 }
 
 type statuslineInput struct {
+	SessionID  string `json:"session_id"`
 	RateLimits *struct {
 		FiveHour *window `json:"five_hour"`
 		SevenDay *window `json:"seven_day"`
@@ -62,6 +66,14 @@ func (h *Handler) Statusline(in io.Reader, out io.Writer) error {
 			p := st.Profiles[h.Profile]
 			p.FiveHour, p.SevenDay = five, seven
 			st.Profiles[h.Profile] = p
+			if h.Threshold > 0 && five != nil && five.UsedPercent >= float64(h.Threshold) {
+				st.SwitchRequest = &state.SwitchRequest{
+					Profile:     h.Profile,
+					Reason:      state.ReasonThreshold,
+					SessionID:   input.SessionID,
+					RequestedAt: now.UTC(),
+				}
+			}
 			return nil
 		})
 	}
