@@ -42,9 +42,12 @@ func ForProfile(base []string, configDir string) []string {
 }
 
 func isDropped(name string) bool {
-	if strings.EqualFold(name, ConfigDirVar) {
-		return true
-	}
+	return strings.EqualFold(name, ConfigDirVar) || IsCredentialVar(name)
+}
+
+// IsCredentialVar reports whether name is a variable that overrides or
+// redirects the subscription login.
+func IsCredentialVar(name string) bool {
 	for _, v := range scrubbed {
 		if strings.EqualFold(name, v) {
 			return true

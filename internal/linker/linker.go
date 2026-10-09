@@ -24,6 +24,9 @@ const (
 	Relinked      Outcome = "relinked"
 	SourceMissing Outcome = "source missing"
 	Conflict      Outcome = "conflict"
+	// Missing and Broken are only reported by Check.
+	Missing Outcome = "missing"
+	Broken  Outcome = "broken"
 )
 
 // ErrConflict is returned when an entry exists in a profile and is not the shared one.
@@ -122,4 +125,34 @@ func isEmptyDir(dst string, linfo fs.FileInfo) bool {
 	}
 	entries, err := os.ReadDir(dst)
 	return err == nil && len(entries) == 0
+}
+
+// Check reports the state of each shared entry without changing anything.
+func Check(source, profileDir string, names []string) []Result {
+	results := make([]Result, 0, len(names))
+	for _, name := range names {
+		results = append(results, checkOne(source, profileDir, name))
+	}
+	return results
+}
+
+func checkOne(source, profileDir, name string) Result {
+	if !validEntry(name) {
+		return Result{Name: name, Outcome: Conflict, Detail: "invalid entry name"}
+	}
+	srcInfo, err := os.Stat(filepath.Join(source, name))
+	if err != nil {
+		return Result{Name: name, Outcome: SourceMissing}
+	}
+	dst := filepath.Join(profileDir, name)
+	linfo, err := os.Lstat(dst)
+	switch {
+	case err != nil:
+		return Result{Name: name, Outcome: Missing}
+	case sameEntry(dst, srcInfo):
+		return Result{Name: name, Outcome: Unchanged}
+	case isDangling(dst, linfo):
+		return Result{Name: name, Outcome: Broken, Detail: "link target is gone"}
+	}
+	return Result{Name: name, Outcome: Conflict, Detail: "exists and is not the shared entry"}
 }

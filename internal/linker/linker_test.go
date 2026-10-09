@@ -150,3 +150,25 @@ func TestLinkRejectsUnsafeNames(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckReportsWithoutChanging(t *testing.T) {
+	source, profile := setup(t)
+	write(t, filepath.Join(profile, "CLAUDE.md"), "own")
+	if _, err := Link(source, profile, []string{"projects"}); err != nil {
+		t.Fatal(err)
+	}
+	results := Check(source, profile, []string{"projects", "CLAUDE.md", "skills", "agents"})
+	want := map[string]Outcome{"projects": Unchanged, "CLAUDE.md": Conflict, "skills": SourceMissing, "agents": SourceMissing}
+	for name, outcome := range want {
+		if got := outcomeOf(results, name); got != outcome {
+			t.Errorf("%s: outcome %q, want %q", name, got, outcome)
+		}
+	}
+	write(t, filepath.Join(source, "agents", "x.md"), "x")
+	if got := outcomeOf(Check(source, profile, []string{"agents"}), "agents"); got != Missing {
+		t.Errorf("agents: outcome %q, want %q", got, Missing)
+	}
+	if _, err := os.Lstat(filepath.Join(profile, "agents")); err == nil {
+		t.Error("Check created a link")
+	}
+}
