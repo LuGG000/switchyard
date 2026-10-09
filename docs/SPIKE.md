@@ -155,3 +155,12 @@ TUI was running; no real limit was hit.
   The source file was untouched.
 - After `repair` (identical copy relinked) the next claude start did not break
   the link again, since the key order already matched what claude writes.
+
+## Update install (Windows, switchyard 0.1.1)
+
+- A running exe can be renamed but not overwritten: `Replace` renames it to `.old` and puts the
+  new file in place while the old process keeps running; the next `update` removes `.old`.
+- End to end against the public release: a 0.1.0 build ran `update`, `status --json` showed
+  `update: {version: 0.1.1}`, `update --install` downloaded the archive, verified `checksums.txt`
+  and replaced the binary; the next `update` reported it up to date.
+- Not verified: the same on Linux/macOS, and `claude plugin update switchyard-mod@switchyard`.
