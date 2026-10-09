@@ -31,9 +31,10 @@ From source (Go 1.25 or newer):
 go install github.com/LuGG000/switchyard/cmd/switchyard@latest
 ```
 
-Or download the archive for Linux or Windows (amd64, arm64) from the
+Or download the archive for Linux, macOS or Windows (amd64, arm64) from the
 [releases page](https://github.com/LuGG000/switchyard/releases), unpack it and put
-`switchyard` on your `PATH`.
+`switchyard` on your `PATH`. Linux releases also ship `.deb` and `.rpm` packages, and
+`packaging/aur/PKGBUILD` builds the Arch package from source.
 `claude` must be installed and on the `PATH`.
 
 ## Usage
@@ -123,13 +124,13 @@ and may change between releases.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): packages and the decisions taken
 - [docs/SPIKE.md](docs/SPIKE.md): what was verified against `claude`
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test and contribute
-- [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 
 ## Scope
 
 Subscription logins only (`authMethod: claude.ai`). API-key, Console, Bedrock,
 Vertex and Foundry accounts are explicitly out of scope. Supported: Linux and
-Windows; WSL is not verified yet.
+Windows; macOS binaries are built but not tested yet, and WSL is not verified.
 
 ## Terms of service and risk
 

@@ -4,7 +4,7 @@ project_name: switchyard
 builds:
   - main: ./cmd/switchyard
     env: [CGO_ENABLED=0]
-    goos: [linux, windows]
+    goos: [linux, windows, darwin]
     goarch: [amd64, arm64]
     ldflags: ["-s -w -X main.version={{.Version}}"]
 
@@ -13,7 +13,7 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-    files: [LICENSE, NOTICE, README.md]
+    files: [LICENSE, NOTICE, THIRD_PARTY_NOTICES.md, README.md]
 
 checksum:
   name_template: checksums.txt
@@ -51,3 +51,17 @@ release:
     ```
 
     or download the archive for your system below. `switchyard update` shows whether you are current.
+
+nfpms:
+  - id: packages
+    package_name: switchyard
+    homepage: https://github.com/LuGG000/switchyard
+    maintainer: LuGG000 <81622672+LuGG000@users.noreply.github.com>
+    description: Account switcher with limit failover for Claude Code subscription logins
+    license: Apache-2.0
+    formats: [deb, rpm]
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/switchyard/LICENSE
+      - src: THIRD_PARTY_NOTICES.md
+        dst: /usr/share/doc/switchyard/THIRD_PARTY_NOTICES.md
