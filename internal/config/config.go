@@ -109,6 +109,33 @@ func (c Config) ResolveSourceDir() (string, error) {
 	return filepath.Join(home, ".claude"), nil
 }
 
+// WriteDefault writes the default configuration to path unless a file already
+// exists there. It reports whether a file was written.
+func WriteDefault(path string) (bool, error) {
+	data, err := toml.Marshal(Default())
+	if err != nil {
+		return false, fmt.Errorf("encode config: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return false, fmt.Errorf("create config dir: %w", err)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if errors.Is(err, fs.ErrExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("create config: %w", err)
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return false, fmt.Errorf("write config: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return false, fmt.Errorf("write config: %w", err)
+	}
+	return true, nil
+}
+
 // Path returns the location of config.toml.
 func Path() (string, error) {
 	dir, err := configDir()

@@ -98,3 +98,29 @@ func TestResolveSourceDir(t *testing.T) {
 		t.Errorf("default: got %q", got)
 	}
 }
+
+func TestWriteDefaultCreatesLoadableFileOnce(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sub", "config.toml")
+	written, err := WriteDefault(path)
+	if err != nil || !written {
+		t.Fatalf("first write: %t, %v", written, err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Mode != Default().Mode || len(cfg.Link) != len(Default().Link) {
+		t.Errorf("round trip differs: %+v", cfg)
+	}
+
+	if err := os.WriteFile(path, []byte("mode = \"auto\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	written, err = WriteDefault(path)
+	if err != nil || written {
+		t.Fatalf("second write: %t, %v", written, err)
+	}
+	if cfg, _ := Load(path); cfg.Mode != ModeAuto {
+		t.Error("existing config was overwritten")
+	}
+}

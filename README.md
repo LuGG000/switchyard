@@ -2,7 +2,29 @@
 
 Open-source account switcher for Claude Code subscription logins (Pro/Max).
 
-**Status: planning.** No functional code yet. See [docs/PLAN.md](docs/PLAN.md).
+**Status: early development.** Profiles, manual switching and `run` work against
+`claude`; limit detection and automatic failover are not implemented yet. See
+[docs/PLAN.md](docs/PLAN.md) and [docs/STATUS.md](docs/STATUS.md).
+
+## Usage
+
+```
+switchyard init                       # create the default config.toml
+switchyard add work1                  # create a profile and log it in
+switchyard list                       # profiles and their login state
+switchyard status [--json]            # active profile, last use, cooldowns
+switchyard run -- --model haiku       # run claude with the active profile
+switchyard switch work2 --resume      # switch and continue the current conversation
+switchyard switch work2 --fresh       # switch and start a new conversation
+switchyard switch work2 --no-launch   # only change the active profile
+switchyard repair                     # re-create the shared links
+```
+
+Profiles share `projects/`, settings, skills and the other entries listed in
+`link` (config) with the default `~/.claude` through symlinks (junctions on
+Windows). Without `--resume` or `--fresh`, `carry_context` in `config.toml`
+decides. Carrying the context makes the new account process it again with a cold
+prompt cache, and it counts against that account's limit.
 
 ## Scope
 
