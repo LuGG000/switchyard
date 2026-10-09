@@ -5,7 +5,10 @@ Open-source account switcher for Claude Code subscription logins (Pro/Max).
 **Status: early development.** Profiles, manual switching and `run` work against
 `claude`, and a limit moves the session to the next profile (headless and
 interactive). Real limits have not been observed yet. See
-[docs/PLAN.md](docs/PLAN.md) and [docs/STATUS.md](docs/STATUS.md).
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works,
+[docs/SPIKE.md](docs/SPIKE.md) for what was verified against `claude`, and
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) to build and contribute. The optional
+Claude Code mod is described in [mod/README.md](mod/README.md).
 
 ## Usage
 

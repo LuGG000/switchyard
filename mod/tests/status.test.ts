@@ -26,7 +26,7 @@ const OK = JSON.stringify({
       five_hour: { used_percent: 20.4, resets_at: '2026-10-09T15:00:00Z', updated_at: '2026-10-09T11:00:00Z' },
       seven_day: { used_percent: 18, resets_at: '2026-10-13T12:00:00Z', updated_at: '2026-10-09T11:00:00Z' },
     },
-    { name: 'zweit', active: false, cooldown_until: '2026-10-09T15:00:00Z', five_hour: null, seven_day: null },
+    { name: 'work2', active: false, cooldown_until: '2026-10-09T15:00:00Z', five_hour: null, seven_day: null },
   ],
 })
 
@@ -70,12 +70,12 @@ test('problems are described for the pane', async () => {
 test('parses the arguments of /switchyard', async () => {
   expect(parseCommand('')).toEqual({ kind: 'open', page: 'main' })
   expect(parseCommand('  style ')).toEqual({ kind: 'open', page: 'style' })
-  expect(parseCommand('switch zweit')).toEqual({ kind: 'switch', name: 'zweit' })
-  expect(parseCommand('switch  zweit  fresh ')).toEqual({ kind: 'switch', name: 'zweit', flag: '--fresh' })
-  expect(parseCommand('SWITCH zweit --resume')).toEqual({ kind: 'switch', name: 'zweit', flag: '--resume' })
+  expect(parseCommand('switch work2')).toEqual({ kind: 'switch', name: 'work2' })
+  expect(parseCommand('switch  work2  fresh ')).toEqual({ kind: 'switch', name: 'work2', flag: '--fresh' })
+  expect(parseCommand('SWITCH work2 --resume')).toEqual({ kind: 'switch', name: 'work2', flag: '--resume' })
   expect(parseCommand('mode')).toEqual({ kind: 'mode', mode: null })
   expect(parseCommand('mode AUTO')).toEqual({ kind: 'mode', mode: 'auto' })
-  for (const bad of ['switch', 'switch a b c', 'switch zweit later', 'mode never', 'mode auto ask', 'style now', 'accounts', 'x']) {
+  for (const bad of ['switch', 'switch a b c', 'switch work2 later', 'mode never', 'mode auto ask', 'style now', 'accounts', 'x']) {
     expect(parseCommand(bad)).toEqual({ kind: 'help' })
   }
 })

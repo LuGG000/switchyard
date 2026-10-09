@@ -17,7 +17,7 @@ const STATUS = JSON.stringify({
   active: 'main',
   profiles: [
     { name: 'main', active: true, cooldown_until: null, five_hour: { used_percent: 20, resets_at: '', updated_at: '' }, seven_day: null },
-    { name: 'zweit', active: false, cooldown_until: null, five_hour: null, seven_day: null },
+    { name: 'work2', active: false, cooldown_until: null, five_hour: null, seven_day: null },
   ],
 })
 
@@ -62,20 +62,20 @@ test('the pane lists the accounts and offers to continue in the other one', asyn
     const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface, component: 'Pane', props: PANE, requestId: 'switchyard' })
     expect(await ui.find({ type: 'Text', text: /main/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /20%/ })).toBeDefined()
-    expect(await ui.find({ key: 'switch-zweit' })).toBeDefined()
+    expect(await ui.find({ key: 'switch-work2' })).toBeDefined()
     expect(await ui.find({ key: 'switch-main' })).toBeUndefined()
     await ui.unmount()
   }
 })
 
 test('pressing a button asks switchyard for a handoff', async ($, on) => {
-  const calls = world(on, argv => ({ exitCode: 0, stdout: argv[1] === 'status' ? STATUS : 'Handoff to zweit requested\n', stderr: '' }))
+  const calls = world(on, argv => ({ exitCode: 0, stdout: argv[1] === 'status' ? STATUS : 'Handoff to work2 requested\n', stderr: '' }))
   await openAccounts($)
 
   const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
-  await ui.press({ key: 'fresh-zweit' })
+  await ui.press({ key: 'fresh-work2' })
   const handoff = calls.find(argv => argv[1] === 'handoff')
-  expect(handoff?.slice(0, 3)).toEqual(['switchyard', 'handoff', 'zweit'])
+  expect(handoff?.slice(0, 3)).toEqual(['switchyard', 'handoff', 'work2'])
   expect(handoff?.at(-1)).toBe('--fresh')
   await ui.unmount()
 })
@@ -101,10 +101,10 @@ test('an incompatible schema is explained in the pane', async ($, on) => {
 
 test('/switch passes the choice on and reports a refusal', async ($, on) => {
   const calls = world(on, argv =>
-    argv[1] === 'handoff' ? { exitCode: 1, stdout: '', stderr: 'zweit is already the active profile\n' } : { exitCode: 0, stdout: STATUS, stderr: '' },
+    argv[1] === 'handoff' ? { exitCode: 1, stdout: '', stderr: 'work2 is already the active profile\n' } : { exitCode: 0, stdout: STATUS, stderr: '' },
   )
 
-  const refused = await runCommand($, 'switchyard', 'switch zweit fresh')
+  const refused = await runCommand($, 'switchyard', 'switch work2 fresh')
   expect(refused.text).toMatch(/already the active profile/)
   expect(calls.find(argv => argv[1] === 'handoff')?.at(-1)).toBe('--fresh')
 
@@ -153,7 +153,7 @@ test('an older switchyard without config leaves the settings out of the pane', a
 
   const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   expect(await ui.find({ key: 'mode-auto' })).toBeUndefined()
-  expect(await ui.find({ key: 'switch-zweit' })).toBeDefined()
+  expect(await ui.find({ key: 'switch-work2' })).toBeDefined()
   await ui.unmount()
 })
 

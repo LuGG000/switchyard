@@ -1,8 +1,6 @@
 # Architecture (as built)
 
-`docs/PLAN.md` is the original plan (German) and still holds the rationale,
-facts and phases. This file describes what exists in the code today and the
-decisions taken while building it. Where the two differ, this file wins.
+This file describes what exists in the code and the decisions taken while building it.
 
 ## Packages
 

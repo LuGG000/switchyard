@@ -20,10 +20,7 @@ for `main`.
 - `main` is protected: changes only through a pull request with green checks,
   linear history, no force push. Squash-merge.
 - One small branch and PR per step (`feat/…`, `fix/…`, `docs/…`).
-- Commit identity `LuGG000 <81622672+LuGG000@users.noreply.github.com>`
-  (`git config --local`), Conventional Commits, no AI attribution.
-- Close or comment on the matching GitHub issue and update `docs/STATUS.md`
-  when a step is done.
+- Conventional Commits; close or comment on the matching GitHub issue when a step is done.
 
 ## Tests without an account
 
@@ -39,7 +36,7 @@ for `main`.
 
 ## Tests with real accounts
 
-Follow `AGENTS.md`: few short prompts, `--model haiku`, an empty temp directory.
+Keep it cheap: few short prompts, `--model haiku`, an empty temp directory.
 Profiles are created with `switchyard add <name>` (browser login; the same Pro
 account can be used for several profiles). Typical check:
 
@@ -65,10 +62,10 @@ Never log text values such as paths, session content or account data.
 
 ## Open spikes
 
-`#6` headless limit signal, `#7` terminating interactive `claude`, `#10` WSL.
-They need a second independent Pro account (expected around 2026-10-24) or a
-Windows/WSL machine; the issue bodies hold the acceptance criteria. Record the
-results in `docs/SPIKE.md`.
+Still unverified: the headless limit signal and the real StopFailure hook input
+(both need a real usage limit on a second Pro account), terminating an
+interactive `claude` on Unix, and WSL versus native Windows config dirs. The open
+issues hold the acceptance criteria; record the results in `docs/SPIKE.md`.
 
 ## The mod
 
