@@ -164,3 +164,26 @@ test('/failover shows, sets and refuses', async ($, on) => {
   expect(calls).toContainEqual(['switchyard', 'config', 'set', 'mode', 'auto'])
   expect((await runCommand($, 'failover', 'sometimes')).text).toMatch(/Usage: \/failover/)
 })
+
+test('the pane follows the theme unless colors are set', async ($, on) => {
+  world(on, withConfig)
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).not.toContain('backgroundColor')
+  expect(drawn).toContain('"success"')
+  await ui.unmount()
+})
+
+test('the colors set in the options are used by the pane', { options: { background: '#101010', text: 'white', usageLow: 'cyan', borderActive: '#00ff88' } }, async ($, on) => {
+  world(on, withConfig)
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'accounts' })
+  const drawn = JSON.stringify(await ui.drawn())
+  for (const wanted of ['"backgroundColor":"#101010"', '"color":"white"', '"color":"cyan"', '"#00ff88"']) {
+    expect(drawn).toContain(wanted)
+  }
+  await ui.unmount()
+})

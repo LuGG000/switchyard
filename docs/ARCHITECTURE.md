@@ -152,7 +152,8 @@ Consumers must check `schema` first.
   account; a second line duplicated it). It adds `/accounts` (a pane with cards and
   buttons, plus a Failover card that sets `mode` and `carry_context` through
   `config set`) and `/switch` and `/failover`; it refreshes on `/accounts` and after
-  each turn. A
+  each turn. Its colors are options of the plugin (`userConfig`, empty = the theme's),
+  so they never touch the Claude theme or other mods. A
   missing or failing `switchyard` is explained in the pane. The marketplace file is
   `.claude-plugin/marketplace.json` at the repo root (`source: ./mod`);
   `switchyard mod install` adds that marketplace and installs the plugin. The

@@ -49,3 +49,21 @@ claude plugin test mod
 Type-check with `tsc -p mod` after Claude Code has loaded the mod once from a
 folder it may write in (`claude --plugin-dir mod`, interactive): it then lays the
 API types into `mod/.claude-plugin/types/`. They are generated, not committed.
+
+## Colors
+
+The pane follows your Claude theme. To change its colors, use the mod's own
+options (`/config`, the `switchyard-mod` rows, or `pluginConfigs` in your
+settings): they belong to this mod alone, the theme and other mods are not
+touched. Each takes a theme color (`success`, `warning`, `error`, `subtle`, ...),
+a color name or hex (`#1e1e1e`); empty keeps the default.
+
+| Option | Default | Colors |
+| --- | --- | --- |
+| `background` | engine's | background of the whole pane |
+| `text` | theme | text |
+| `usageLow` / `usageMedium` / `usageHigh` | success / warning / error | usage bars below 70%, 70-89%, from 90% |
+| `borderActive` | success | border and name of the active account |
+| `border` | subtle | border of the other cards |
+
+The buttons are drawn by Claude Code and keep its look.

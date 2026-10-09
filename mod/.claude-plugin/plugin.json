@@ -3,5 +3,49 @@
   "version": "0.1.0",
   "description": "Shows switchyard account usage and switches the running session to another account.",
   "author": { "name": "LuGG000" },
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "background": {
+      "type": "string",
+      "title": "Accounts pane: background",
+      "description": "Background color of the /accounts pane. Empty keeps the default. A color name (black) or hex (#1e1e1e).",
+      "default": ""
+    },
+    "text": {
+      "type": "string",
+      "title": "Accounts pane: text color",
+      "description": "Color of the text in the /accounts pane. Empty follows your Claude theme. A color name or hex.",
+      "default": ""
+    },
+    "usageLow": {
+      "type": "string",
+      "title": "Accounts pane: usage below 70%",
+      "description": "Color of a usage bar below 70%. Empty uses your theme's success color.",
+      "default": ""
+    },
+    "usageMedium": {
+      "type": "string",
+      "title": "Accounts pane: usage 70-89%",
+      "description": "Color of a usage bar from 70% to 89%. Empty uses your theme's warning color.",
+      "default": ""
+    },
+    "usageHigh": {
+      "type": "string",
+      "title": "Accounts pane: usage from 90%",
+      "description": "Color of a usage bar from 90%. Empty uses your theme's error color.",
+      "default": ""
+    },
+    "borderActive": {
+      "type": "string",
+      "title": "Accounts pane: active account border",
+      "description": "Border and name color of the active account. Empty uses your theme's success color.",
+      "default": ""
+    },
+    "border": {
+      "type": "string",
+      "title": "Accounts pane: other borders",
+      "description": "Border color of the other cards. Empty uses your theme's subtle color.",
+      "default": ""
+    }
+  }
 }
