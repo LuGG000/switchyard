@@ -1,0 +1,99 @@
+# Architecture (as built)
+
+`docs/PLAN.md` is the original plan (German) and still holds the rationale,
+facts and phases. This file describes what exists in the code today and the
+decisions taken while building it. Where the two differ, this file wins.
+
+## Packages
+
+| Package | Purpose |
+| --- | --- |
+| `cmd/switchyard` | cobra CLI: `init add login list status switch run repair doctor` and the hidden `hook` command |
+| `internal/config` | `config.toml` loading, defaults, validation; data and config directory lookup |
+| `internal/state` | `state.json` with inter-process file lock (`gofrs/flock`) and atomic writes |
+| `internal/profiles` | profile directories, `claude auth login/status` wrappers, subscription validation |
+| `internal/claudeenv` | environment for child `claude` processes: removes credential variables, sets `CLAUDE_CONFIG_DIR` |
+| `internal/linker` | shares entries of the default config dir with profiles (symlink, Windows junction) |
+| `internal/launcher` | starts `claude` for a profile, returns its exit code |
+| `internal/selector` | picks the next profile (sequential, most-headroom, round-robin), honors cooldowns |
+| `internal/hooks` | statusLine and StopFailure hook handlers, builds the `--settings` JSON |
+| `internal/doctor` | read-only health checks |
+| `fakeclaude` | test double for the `claude` executable (see `docs/DEVELOPMENT.md`) |
+
+Not yet written: `internal/detector`, `internal/ipc`, `internal/platform`, the
+headless and interactive failover loops (phases 3 and 4) and the mod (phase 5).
+
+## Files and directories
+
+- Config: `<os.UserConfigDir>/switchyard/config.toml`, override with `SWITCHYARD_CONFIG_DIR`.
+- Data: `$XDG_DATA_HOME/switchyard`, else `%LocalAppData%\switchyard`, else
+  `~/.local/share/switchyard`; override with `SWITCHYARD_DATA_DIR`.
+  - `profiles/<name>/`: one claude config dir per profile (own login).
+  - `state.json` and `state.json.lock`.
+- A profile name matches `^[a-z0-9][a-z0-9_-]{0,31}$`.
+
+## Config keys (`config.toml`)
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `mode` | `ask` | `ask` or `auto` failover (used from phase 3/4) |
+| `carry_context` | `true` | continue the current conversation when switching |
+| `strategy` | `sequential` | `sequential`, `most-headroom`, `round-robin` |
+| `continue_prompt` | empty | sent after a resumed session starts (phase 4) |
+| `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off (phase 4) |
+| `source_dir` | empty = `~/.claude` | claude config dir whose entries are shared |
+| `link` | projects, settings.json, CLAUDE.md, skills, agents, commands, plugins | entries shared with every profile |
+
+## State (`state.json`, schema version 1)
+
+`active` (profile name) and `profiles.<name>` with `last_used`,
+`cooldown_until`, `five_hour` and `seven_day` (`used_percent`, `resets_at`,
+`updated_at`). New fields are added without bumping the version; a file with a
+newer version is rejected.
+
+## `status --json` (schema 1)
+
+`{"schema":1,"version":"…","active":"…","profiles":[{"name","active","last_used","cooldown_until","five_hour","seven_day"}]}`.
+It reads only the state file and never starts `claude`, so the mod can poll it.
+`five_hour`/`seven_day` are `null` or `{used_percent, resets_at, updated_at}`.
+Consumers must check `schema` first.
+
+## Decisions
+
+- **Switching.** `switch <name>` makes the profile active and starts `claude`
+  with it. `--resume` adds `--continue` (the most recent conversation of the
+  current directory, found through the shared `projects/`), `--fresh` starts a
+  new one, `--no-launch` only changes the active profile. Without a flag
+  `carry_context` decides. Carrying context prints the cold-cache hint (the new
+  account reprocesses the whole conversation). Failover in phase 4 should resume
+  by session ID instead; `session_id` and `transcript_path` are in the
+  statusLine JSON.
+- **Failover choice.** The user chooses automatic (`auto`) or confirmed (`ask`)
+  failover, and whether context is carried over. Manual switching with or
+  without context is always possible.
+- **Signals.** `run` and `switch` pass `--settings <json>` to claude with a
+  `StopFailure` hook (matcher `rate_limit`) and a `statusLine` that call
+  `switchyard hook statusline|stop-failure --profile <name>`. The user's
+  settings files are never modified. Hooks from `--settings` are added to the
+  user's hooks, but a `statusLine` replaces the user's, so the statusline hook
+  runs the profile's own `statusLine` command itself and prints its output
+  (spike results in `docs/SPIKE.md`).
+- **Usage source.** Interactive: the statusLine JSON (`rate_limits.five_hour`,
+  `seven_day` with `used_percentage` and `resets_at`), delivered after the first
+  response of a session and refreshed per turn. Headless (`-p`): the statusLine
+  is not called; use the `rate_limit_event` of `--output-format stream-json`
+  (`utilization` as a fraction, `resetsAt`).
+- **Cooldown (provisional).** The StopFailure hook sets `cooldown_until` to the
+  reset of a window that is used up, else to the nearest known future reset,
+  else now plus 30 minutes. Revisit once a real limit is observed (spike #6).
+- **Linker.** It never overwrites real content. It replaces only empty
+  directories and dangling links; anything else is a conflict that `repair` and
+  `doctor` report. Windows uses directory junctions (no admin rights) and, for
+  files, a symlink or hard link. Never remove a junction with a recursive
+  delete.
+- **Environment.** Child processes lose `ANTHROPIC_API_KEY`,
+  `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, Bedrock/Vertex/Foundry
+  variables, and get `CLAUDE_CONFIG_DIR` set to the profile.
+- **Secrets.** `claude auth status` output is parsed for `loggedIn`,
+  `authMethod`, `subscriptionType`, `configDirectory` only. `doctor` reads
+  only key names from `settings.json`. `.credentials.json` is never touched.

@@ -18,6 +18,7 @@ switchyard switch work2 --resume      # switch and continue the current conversa
 switchyard switch work2 --fresh       # switch and start a new conversation
 switchyard switch work2 --no-launch   # only change the active profile
 switchyard repair                     # re-create the shared links
+switchyard doctor                     # check logins, settings and links
 ```
 
 Profiles share `projects/`, settings, skills and the other entries listed in

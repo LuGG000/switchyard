@@ -4,3 +4,4 @@
 - Do not copy code from other account-switcher projects.
 - Never read, copy or log credential files or tokens.
 - Keep changes small and match the surrounding style.
+- See `docs/DEVELOPMENT.md` for build, test and pull request workflow.
