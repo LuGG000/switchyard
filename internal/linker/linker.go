@@ -195,3 +195,9 @@ func checkOne(source, profileDir, name string) Result {
 	}
 	return Result{Name: name, Outcome: Conflict, Detail: "exists and is not the shared entry"}
 }
+
+// LinkDir makes link point at the directory target: a symlink, or a junction on
+// Windows, which needs no elevated rights.
+func LinkDir(target, link string) error {
+	return createLink(target, link, true)
+}

@@ -16,6 +16,7 @@ import (
 	"regexp"
 
 	"github.com/LuGG000/switchyard/internal/claudeenv"
+	"github.com/LuGG000/switchyard/internal/linker"
 )
 
 // SubscriptionAuth is the authMethod reported for a claude.ai subscription login.
@@ -76,6 +77,39 @@ func (m *Manager) Create(name string) (Profile, error) {
 			return Profile{}, fmt.Errorf("%w: %s", ErrExists, name)
 		}
 		return Profile{}, fmt.Errorf("create profile dir: %w", err)
+	}
+	return p, nil
+}
+
+// Adopt makes an existing claude config directory a profile without copying anything:
+// the profile directory is a link to source, so its login and its shared entries are
+// the ones already there. The same directory cannot be adopted twice.
+func (m *Manager) Adopt(name, source string) (Profile, error) {
+	if !ValidName(name) {
+		return Profile{}, fmt.Errorf("invalid profile name %q: use 1-32 lowercase letters, digits, '-' or '_'", name)
+	}
+	info, err := os.Stat(source)
+	if err != nil || !info.IsDir() {
+		return Profile{}, fmt.Errorf("config directory %s does not exist", source)
+	}
+	existing, err := m.List()
+	if err != nil {
+		return Profile{}, err
+	}
+	for _, p := range existing {
+		if pi, err := os.Stat(p.Dir); err == nil && os.SameFile(pi, info) {
+			return Profile{}, fmt.Errorf("%s is already the profile %s", source, p.Name)
+		}
+	}
+	if err := os.MkdirAll(m.Root, 0o700); err != nil {
+		return Profile{}, fmt.Errorf("create profiles dir: %w", err)
+	}
+	p := m.profile(name)
+	if _, err := os.Lstat(p.Dir); err == nil {
+		return Profile{}, fmt.Errorf("%w: %s", ErrExists, name)
+	}
+	if err := linker.LinkDir(source, p.Dir); err != nil {
+		return Profile{}, fmt.Errorf("link profile to %s: %w", source, err)
 	}
 	return p, nil
 }

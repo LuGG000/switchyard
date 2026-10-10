@@ -240,3 +240,17 @@ asks through buttons and keeps claude running meanwhile:
   Verified in bash and PowerShell; zsh and fish are the same logic, not run.
 - `doctor` already checks `apiKeyHelper` and `env` in `settings.json`; the credential variables in
   the environment are removed per run (`internal/claudeenv`).
+
+## Adopting the existing login
+
+- `add <name> --existing` (and the offer in `init`) makes `source_dir` (default `~/.claude`) a profile:
+  `Manager.Adopt` links `profiles/<name>` to it (symlink, junction on Windows), so nothing is
+  copied and no second login exists. The linker then finds every shared entry already "unchanged".
+  The same directory cannot be adopted twice; an invalid name, a used name or a missing directory
+  is refused before anything is created.
+- `init` only offers it while there are no profiles and `claude auth status` for that directory
+  reports a subscription login. It asks in a terminal and treats a closed stdin as no; elsewhere it
+  prints the command. It never fails `init`.
+- Verified on Windows with a real login: init, add --existing, list, doctor, repair and a run
+  through the link. Not tried on macOS (the Keychain entry may depend on the config directory, so the
+  login check can fail there) or Linux.

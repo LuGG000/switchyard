@@ -179,3 +179,56 @@ func TestListFollowsLinkedProfileDirectories(t *testing.T) {
 		t.Errorf("List = %+v, want linked and plain", got)
 	}
 }
+
+func TestAdoptLinksAnExistingConfigDirectory(t *testing.T) {
+	m := newManager(t, true, SubscriptionAuth)
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "marker.txt"), []byte("mine"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := m.Adopt("main", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(p.Dir, "marker.txt")); err != nil || string(data) != "mine" {
+		t.Fatalf("the profile does not show the source directory: %q, %v", data, err)
+	}
+	list, err := m.List()
+	if err != nil || len(list) != 1 || list[0].Name != "main" {
+		t.Fatalf("List = %v, %v", list, err)
+	}
+	st, err := m.Validate(context.Background(), p)
+	if err != nil || st.ConfigDirectory != p.Dir {
+		t.Fatalf("Validate = %+v, %v", st, err)
+	}
+}
+
+func TestAdoptRefusesWhatCannotBeAdopted(t *testing.T) {
+	m := newManager(t, true, SubscriptionAuth)
+	source := t.TempDir()
+	if _, err := m.Adopt("main", source); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Create("taken"); err != nil {
+		t.Fatal(err)
+	}
+	other := t.TempDir()
+
+	tests := []struct {
+		name, profile, source, want string
+	}{
+		{"the same directory twice", "second", source, "already the profile main"},
+		{"a name in use", "taken", other, "already exists"},
+		{"a bad name", "Bad Name", other, "invalid profile name"},
+		{"a missing directory", "third", filepath.Join(other, "nope"), "does not exist"},
+	}
+	for _, tt := range tests {
+		if _, err := m.Adopt(tt.profile, tt.source); err == nil || !strings.Contains(err.Error(), tt.want) {
+			t.Errorf("%s: err = %v, want it to mention %q", tt.name, err, tt.want)
+		}
+	}
+	if list, _ := m.List(); len(list) != 2 {
+		t.Errorf("a refused adoption left a profile behind: %v", list)
+	}
+}
