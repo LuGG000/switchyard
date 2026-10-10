@@ -173,4 +173,5 @@ TUI was running; no real limit was hit.
   **Stay here** left claude running and cleared the card.
 - `$.clock.every` ticks in the interactive TUI and its callback may run `$.process.run`; the
   heartbeat is written every two seconds.
-- Not verified: the two-minute fallback to the terminal and **New conversation** in the TUI.
+- Without a click the terminal asked after the two minutes and answering `y` continued in the other profile with the conversation (verified by hand).
+- **New conversation** started the other profile empty: the remembered word was not known there (verified by hand).
