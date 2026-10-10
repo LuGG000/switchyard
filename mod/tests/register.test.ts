@@ -325,6 +325,20 @@ test('a newer release is offered in the pane and installed in the background', a
   await ui.unmount()
 })
 
+test('a newer release is mentioned once with a toast', async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+
+    return { value: undefined }
+  })
+  world(on, () => ({ exitCode: 0, stdout: WITH_UPDATE, stderr: '' }))
+  await openAccounts($)
+  await openAccounts($)
+
+  expect(toasts.filter(text => /switchyard 0\.2\.0 is available/.test(text)).length).toBe(1)
+})
+
 test('without a newer release the pane has no update button', async ($, on) => {
   world(on, () => ({ exitCode: 0, stdout: STATUS, stderr: '' }))
   await openAccounts($)

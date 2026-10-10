@@ -14,7 +14,7 @@ One command, `/switchyard`, opens a pane with two pages:
 - **At a limit** (mode ask): the pane opens by itself with the question as buttons: continue in an
   account, start a new conversation there, or stay. claude keeps running while you choose; after
   two minutes without an answer, or without the mod, the terminal asks as before.
-- **Update:** when a newer switchyard release exists the overview shows an **Update available** block
+- **Update:** a toast mentions a newer switchyard release once per session; the overview shows an **Update available** block
   with an **Update now** button. It installs in the background; your claude session keeps running.
 - **Style:** palettes (theme, dark, light), a preview of the usage colors and an editor for
   every color: click the color to change, then a new value (`default` or a common color name,

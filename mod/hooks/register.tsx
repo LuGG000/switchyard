@@ -87,10 +87,18 @@ async function watchDecision($: Engine): Promise<void> {
   }
 }
 
+/** The release the user was told about, so a session mentions each one once. */
+let announcedUpdate = ''
+
 async function refresh($: Engine): Promise<void> {
   const current = await load($)
   await update($, snapshot, () => current)
   await pollDecision($)
+  const pending = current.kind === 'ok' ? current.update : null
+  if (pending && pending.version !== announcedUpdate) {
+    announcedUpdate = pending.version
+    $.ui.toast(`switchyard ${pending.version} is available. Run /switchyard update, or press Update now in the pane.`)
+  }
 }
 
 /** Runs a command that changes switchyard, then refreshes; the answer is the text to show. */
