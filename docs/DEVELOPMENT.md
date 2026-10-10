@@ -88,7 +88,7 @@ tsc -p mod                            # needs the generated types, see mod/READM
 1. `main` is green and the changes are merged.
 2. Check the release config locally: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean` (the output in `dist/` is ignored by git).
 3. Tag and push: `git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0`. The `release` workflow builds the archives and creates the GitHub release with notes grouped by Conventional Commit type (`docs:`, `ci:`, `chore:`, `test:` are left out).
-4. `.deb`/`.rpm` packages and macOS archives are built by the same run. Both `packaging/aur*/PKGBUILD` files are updated by hand per release (bump `pkgver`; `sha256sums` from the tag tarball, or from `checksums.txt` for `-bin`). CI builds a snapshot release and checks the dependency licenses.
+4. `.deb`/`.rpm` packages and macOS archives are built by the same run. After the release is published, run `packaging/bump.sh <version>` (for example `packaging/bump.sh 0.2.0`): it sets `pkgver` and the checksums of both `packaging/aur*/PKGBUILD` files from the release itself (`checksums.txt` for `-bin`, the tag tarball for the source package); commit the result as `chore: ...`. It is a script and not part of the release workflow because the workflow's token cannot open a pull request that passes the required checks. CI builds a snapshot release and checks the dependency licenses.
 5. Versions follow semver; while the version is below 1.0.0 minor releases may change behavior. Update hints in `switchyard` read the latest non-draft, non-prerelease release.
 
 The mod is versioned on its own in `mod/.claude-plugin/plugin.json`. Bump it in every PR that
