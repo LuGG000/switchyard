@@ -18,7 +18,6 @@ table is the current state. "Windows" means tried by hand with the real `claude`
 | `settings.json` link replaced by claude on Windows | found and handled by `repair` | Windows |
 | `update --install` | verified | Windows; Linux and macOS open |
 | Mod buttons at a limit | verified with a simulated limit | Windows |
-| Per-model limit (Opus), headless output | no separate window in the `rate_limit_event` of one Opus 5.5 run; a limit event might name another `rateLimitType`, unknown until a real limit ([#28](https://github.com/LuGG000/switchyard/issues/28)) | Windows |
 
 Tested with `claude` 2.1.295 on Windows 11, using throw-away `CLAUDE_CONFIG_DIR`
 directories that are not logged in. No credentials were read and no prompt was
@@ -195,18 +194,3 @@ TUI was running; no real limit was hit.
   heartbeat is written every two seconds.
 - Without a click the terminal asked after the two minutes and answering `y` continued in the other profile with the conversation (verified by hand).
 - **New conversation** started the other profile empty: the remembered word was not known there (verified by hand).
-
-## Per-model limit: one Opus run (Windows, claude 2.1.296, issue #28)
-
-One headless prompt, `claude -p --output-format stream-json --verbose --model opus "say ok"`, from an empty temp
-directory in a profile; the answer came from `claude-opus-5-5`.
-
-- The stream had four lines: `system` (init), `assistant`, `rate_limit_event` and `result`.
-- The `rate_limit_event` carried `rate_limit_info` with `status: allowed`, `rateLimitType: five_hour`, `resetsAt`,
-  `overageStatus`, `overageDisabledReason`, `isUsingOverage` and `unifiedWindows` with exactly two windows, `five_hour`
-  and `seven_day` (`utilization` as a fraction, `resetsAt` in Unix seconds). There was no Opus window.
-- The `result` line has `modelUsage`, keyed by model name; it holds the cost and token counts of the run, not a limit.
-- So no per-model usage is visible with an account far from any limit. What is not known: whether a separate Opus
-  window appears in `unifiedWindows` when it is the binding one, and whether `rateLimitType` then names it (for
-  example a weekly Opus type). That needs a real limit (#1); `internal/detector` ignores window names other than
-  `five_hour` and `seven_day` and would not record such a window, but it still counts a non-`allowed` status as a limit.
