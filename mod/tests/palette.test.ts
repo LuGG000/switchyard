@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { palette } from '../hooks/palette'
+import { describeColor, palette } from '../hooks/palette'
 import type { Colors } from '../types'
 
 const EMPTY: Colors = { background: '', text: '', low: '', medium: '', high: '', border_active: '', border: '' }
@@ -31,4 +31,13 @@ test('set colors override only their own entry', async () => {
   expect(colors.borderActive).toBe('#00ff88')
   expect(colors.low).toBe('success')
   expect(colors.text).toBeUndefined()
+})
+
+test('a slot is described by its value or by what the default draws', async () => {
+  expect(describeColor('#1e1e1e', 'background')).toBe('#1e1e1e')
+  expect(describeColor(' red ', 'high')).toBe('red')
+  expect(describeColor('', 'low')).toBe('default (success)')
+  expect(describeColor(undefined, 'active')).toBe('default (green)')
+  expect(describeColor('', 'background')).toBe('default (Claude background)')
+  expect(describeColor('', 'text')).toBe('default (Claude text color)')
 })
