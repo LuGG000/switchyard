@@ -164,3 +164,13 @@ TUI was running; no real limit was hit.
   `update: {version: 0.1.1}`, `update --install` downloaded the archive, verified `checksums.txt`
   and replaced the binary; the next `update` reported it up to date.
 - Not verified: the same on Linux/macOS, and `claude plugin update switchyard-mod@switchyard`.
+
+## Mod buttons at a limit (Windows, mod 0.3.1, claude 2.1.296)
+
+- Manual test 1 of `docs/MANUAL_TESTS.md` with a simulated limit: the pane opened by itself with a
+  toast and the red card, `claude` kept running and accepted input, **Continue in second** ended
+  it and restarted in the other profile with the conversation (the remembered word came back).
+  **Stay here** left claude running and cleared the card.
+- `$.clock.every` ticks in the interactive TUI and its callback may run `$.process.run`; the
+  heartbeat is written every two seconds.
+- Not verified: the two-minute fallback to the terminal and **New conversation** in the TUI.

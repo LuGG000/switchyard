@@ -340,7 +340,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column" gap={1} {...fill}>
-        <Box gap={1}>
+        <Box gap={1} flexWrap="wrap">
           <Text bold color={colors.text}>switchyard</Text>
           {toPage('to-style', 'Style', 'style')}
           {refreshButton}
@@ -351,7 +351,7 @@ export const register: Register = on => {
             <Text bold color={colors.high}>{question.profile} reached its limit</Text>
             {dim(`claude keeps running while you choose (${secondsLeft(question.expires_at, now)} s left, then the terminal asks).`)}
             {question.options.map(name => (
-              <Box key={name} gap={1}>
+              <Box key={name} gap={1} flexWrap="wrap">
                 <Button
                   key={`decide-${name}`}
                   label={`Continue in ${name}`}
@@ -387,13 +387,13 @@ export const register: Register = on => {
         {settings && (
           <Box flexDirection="column" borderStyle="round" borderColor={colors.border} paddingX={1}>
             <Text bold color={colors.text}>Failover</Text>
-            <Box gap={1}>
-              {dim('At a limit')}
+            {dim('At a limit')}
+            <Box gap={1} flexWrap="wrap">
               {choice('mode-auto', 'switch automatically', settings.mode === 'auto', 'mode', 'auto')}
               {choice('mode-ask', 'ask me', settings.mode === 'ask', 'mode', 'ask')}
             </Box>
-            <Box gap={1}>
-              {dim('Conversation')}
+            {dim('Conversation')}
+            <Box gap={1} flexWrap="wrap">
               {choice('carry-on', 'take it along', settings.carry_context, 'carry_context', 'true')}
               {choice('carry-off', 'start new', !settings.carry_context, 'carry_context', 'false')}
             </Box>
@@ -421,7 +421,7 @@ export const register: Register = on => {
             {usageRow('5h', p.five_hour)}
             {usageRow('7d', p.seven_day)}
             {!p.active && (
-              <Box gap={1} marginTop={1}>
+              <Box gap={1} marginTop={1} flexWrap="wrap">
                 <Button
                   key={`switch-${p.name}`}
                   label="Continue here"
