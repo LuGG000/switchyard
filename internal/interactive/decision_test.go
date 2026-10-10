@@ -13,12 +13,18 @@ import (
 
 // playMod stands in for the mod: it polls like `switchyard decision` (a
 // heartbeat each round) and, once a question is pending, calls answer with it.
-// It stops when the test ends.
+// It stops when the test ends, and the test waits for it so that it writes nothing
+// while the temp directory is removed.
 func (f *fixture) playMod(t *testing.T, answer func(d *state.Decision) *state.Answer) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	done := make(chan struct{})
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
 	go func() {
+		defer close(done)
 		for ctx.Err() == nil {
 			_ = f.store.TouchHeartbeat(time.Now())
 			_ = f.store.Update(func(st *state.State) error {
