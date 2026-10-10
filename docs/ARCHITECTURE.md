@@ -43,6 +43,7 @@ the hooks reach the launcher through the state file (see Decisions).
 | `continue_prompt` | empty | sent as the first message of a resumed session |
 | `update_check` | `true` | `status`, `list` and `doctor` mention a newer release (at most once a day, only on a terminal); `SWITCHYARD_NO_UPDATE_CHECK=1` also turns it off |
 | `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off |
+| `proactive_threshold_weekly` | `0` | the same for the seven-day window, 0 = off |
 | `min_switch_interval_minutes` | `10` | minutes between two automatic switches, 0 = off |
 | `max_auto_switches_per_day` | `6` | most automatic switches in 24 hours, 0 = off |
 | `color_background`, `color_text`, `color_low`, `color_medium`, `color_high`, `color_border_active`, `color_border` | empty = default (the active border is green, the rest follows the theme) | colors of the mod pane: a theme key (`success`, `subtle`, ...), a color name or hex; `config colors` with default, dark or light sets all |
@@ -296,3 +297,15 @@ asks through buttons and keeps claude running meanwhile:
   circuit breaker.
 - Both runners have a `Wait` hook so tests move a fake clock instead of sleeping. Not tried with a real limit (#1).
 - A desktop notification when all profiles are limited or the wait ends is a separate, later step (issue).
+
+## Usage thresholds
+
+- `proactive_threshold` (five-hour) and `proactive_threshold_weekly` (seven-day) are percentages of usage; 0 is off.
+  The statusLine hook writes a `threshold` switch request when either is reached. The launcher only ends the session
+  if another profile is out of cooldown and under the thresholds (`hasAlternative`).
+- `selector.Next` takes `Thresholds`: profiles over one are dropped from the candidates unless every available
+  profile is over, then all stay. The cooldown alone cannot do this: a weekly threshold would otherwise end with the
+  nearest five-hour reset. A window that has reset or has no data counts as unused.
+- Headless runs have no statusLine, so the check happens when a run starts: a start profile over a threshold is
+  replaced by one below, if one exists and the limits on automatic switches allow it (counted like any automatic switch).
+- Tested with unit tests for the selector, the hook, both runners and the config; not tried with real usage numbers.

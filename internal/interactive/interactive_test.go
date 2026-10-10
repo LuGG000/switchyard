@@ -19,6 +19,7 @@ import (
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
+	"github.com/LuGG000/switchyard/internal/selector"
 	"github.com/LuGG000/switchyard/internal/state"
 )
 
@@ -507,5 +508,24 @@ func TestAutoSwitchProceedsOnceTheIntervalHasPassed(t *testing.T) {
 	}
 	if !slices.Equal(f.launches, []string{"a-limited", "b"}) || strings.Contains(f.out.String(), "paused") {
 		t.Errorf("launches = %v, output = %q", f.launches, f.out.String())
+	}
+}
+
+func TestThresholdRequestIsIgnoredWhenTheOtherProfileIsOverTheThresholdToo(t *testing.T) {
+	f := newFixture(t, "", "a", "b")
+	f.runner.Thresholds = selector.Thresholds{FiveHour: 50}
+	now := time.Now()
+	err := f.store.Update(func(st *state.State) error {
+		st.Profiles["b"] = state.Profile{FiveHour: &state.Usage{UsedPercent: 70, ResetsAt: now.Add(time.Hour)}}
+		st.SwitchRequest = &state.SwitchRequest{Profile: "a", Reason: state.ReasonThreshold, RequestedAt: now.Add(time.Minute)}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	if _, ok := f.runner.watch(ctx, f.runner.Profiles[0], now); ok {
+		t.Error("a threshold request ended the session although the other profile is over the threshold as well")
 	}
 }

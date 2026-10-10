@@ -11,6 +11,7 @@ import (
 	"github.com/LuGG000/switchyard/internal/headless"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
+	"github.com/LuGG000/switchyard/internal/selector"
 	"github.com/LuGG000/switchyard/internal/state"
 )
 
@@ -44,6 +45,7 @@ func runHeadless(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p 
 		Strategy:     cfg.Strategy,
 		CarryContext: cfg.CarryContext,
 		Limits:       breaker.FromConfig(cfg),
+		Thresholds:   selector.ThresholdsFromConfig(cfg),
 		WaitForReset: waitForReset,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)

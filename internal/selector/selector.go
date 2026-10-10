@@ -37,7 +37,10 @@ type Candidate struct {
 // Next picks the profile to use after current according to strategy.
 // Candidates are considered in name order. Profiles in cooldown are skipped,
 // and current is a candidate again once its own cooldown is over.
-func Next(strategy, current string, candidates []Candidate, now time.Time) (string, error) {
+// Profiles over a usage threshold are skipped as long as another one is below it; when
+// every available profile is over, they are all candidates, since moving on is better
+// than stopping.
+func Next(strategy, current string, candidates []Candidate, thresholds Thresholds, now time.Time) (string, error) {
 	if len(candidates) == 0 {
 		return "", ErrNoCandidates
 	}
@@ -53,6 +56,7 @@ func Next(strategy, current string, candidates []Candidate, now time.Time) (stri
 	if len(available) == 0 {
 		return "", &AllLockedError{EarliestReset: earliestReset(sorted)}
 	}
+	available = thresholds.below(available, now)
 
 	switch strategy {
 	case config.StrategySequential:
@@ -119,7 +123,7 @@ func earliestReset(candidates []Candidate) time.Time {
 
 // NextProfile picks the profile to continue with after current among list,
 // using the cooldowns and usage in the stored state.
-func NextProfile(store *state.Store, list []profiles.Profile, strategy, current string, now time.Time) (profiles.Profile, error) {
+func NextProfile(store *state.Store, list []profiles.Profile, strategy string, thresholds Thresholds, current string, now time.Time) (profiles.Profile, error) {
 	st, err := store.Read()
 	if err != nil {
 		return profiles.Profile{}, err
@@ -128,7 +132,7 @@ func NextProfile(store *state.Store, list []profiles.Profile, strategy, current 
 	for i, p := range list {
 		candidates[i] = Candidate{Name: p.Name, State: st.Profiles[p.Name]}
 	}
-	name, err := Next(strategy, current, candidates, now)
+	name, err := Next(strategy, current, candidates, thresholds, now)
 	if err != nil {
 		return profiles.Profile{}, err
 	}
@@ -150,4 +154,39 @@ func WaitUntil(ctx context.Context, until time.Time, now func() time.Time) error
 	case <-timer.C:
 		return nil
 	}
+}
+
+// Thresholds are the usage percentages above which a profile is not chosen while another
+// one is below them; zero turns a threshold off. They are the proactive_threshold settings.
+type Thresholds struct {
+	FiveHour int
+	SevenDay int
+}
+
+// ThresholdsFromConfig takes the thresholds from the config.
+func ThresholdsFromConfig(c config.Config) Thresholds {
+	return Thresholds{FiveHour: c.ProactiveThreshold, SevenDay: c.ProactiveThresholdWeekly}
+}
+
+// Over reports whether p has used up a window up to a threshold. A window that has
+// already reset, or one without data, counts as unused.
+func (t Thresholds) Over(p state.Profile, now time.Time) bool {
+	over := func(u *state.Usage, limit int) bool {
+		return limit > 0 && u != nil && (u.ResetsAt.IsZero() || u.ResetsAt.After(now)) && u.UsedPercent >= float64(limit)
+	}
+	return over(p.FiveHour, t.FiveHour) || over(p.SevenDay, t.SevenDay)
+}
+
+// below returns the candidates under the thresholds, or all of them if there are none.
+func (t Thresholds) below(candidates []Candidate, now time.Time) []Candidate {
+	var under []Candidate
+	for _, c := range candidates {
+		if !t.Over(c.State, now) {
+			under = append(under, c)
+		}
+	}
+	if len(under) == 0 {
+		return candidates
+	}
+	return under
 }

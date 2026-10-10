@@ -307,3 +307,28 @@ func TestSummaryNamesANewerRelease(t *testing.T) {
 		t.Errorf("summary without update = %q, want %q", got, want)
 	}
 }
+
+func TestStatuslineWeeklyThresholdRequestsSwitch(t *testing.T) {
+	tests := []struct {
+		name      string
+		threshold int
+		want      bool
+	}{
+		{"weekly usage below threshold", 30, false},
+		{"weekly usage at threshold", 21, true},
+		{"weekly threshold disabled", 0, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHandler(t)
+			h.ThresholdWeekly = tc.threshold
+			if err := h.Statusline(strings.NewReader(rateLimitsJSON), &bytes.Buffer{}); err != nil {
+				t.Fatal(err)
+			}
+			st, _ := h.Store.Read()
+			if got := st.SwitchRequest != nil; got != tc.want {
+				t.Fatalf("switch request present = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
