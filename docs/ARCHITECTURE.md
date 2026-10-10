@@ -327,3 +327,13 @@ asks through buttons and keeps claude running meanwhile:
 - Both runners have a `History` hook; the commands set it. A history that cannot be written never stops a switch.
   Switches only: a limit that leads to no switch (waiting, quitting, a paused automatic switch) is not recorded.
 - `switchyard history [-n N] [--json]` prints them. The state of the current moment stays in `state.json`.
+
+## `watch`
+
+- `switchyard watch [--interval 2s]` redraws one frame every interval until Ctrl+C: the status table, the failover
+  settings, the automatic switches of the last 24 hours against the maximum (and whether switching is paused), and the
+  five newest switches from the history. It needs no `claude` in the PATH.
+- A frame is written with the cursor sent home and a clear of the rest of the screen, not a full clear, so it does not
+  flicker. Windows consoles get escape sequence handling switched on for the run (`enableANSI`, restored at the end).
+- Without a terminal on stdout it prints one frame and ends. The frame is `writeWatch`, which the tests draw directly;
+  the live loop and the Windows console mode are not covered by tests and were not seen in a real terminal by the agent.
