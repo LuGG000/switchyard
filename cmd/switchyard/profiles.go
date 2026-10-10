@@ -1,18 +1,21 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/LuGG000/switchyard/internal/config"
 	"github.com/LuGG000/switchyard/internal/profiles"
+	"github.com/LuGG000/switchyard/internal/state"
 )
 
 const profilesSubdir = "profiles"
@@ -27,8 +30,16 @@ func println(cmd *cobra.Command, msg string) {
 	_, _ = fmt.Fprintln(cmd.OutOrStdout(), msg)
 }
 
-func newProfileManager() (*profiles.Manager, error) {
+func profilesRoot() (string, error) {
 	dataDir, err := config.DataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dataDir, profilesSubdir), nil
+}
+
+func newProfileManager() (*profiles.Manager, error) {
+	root, err := profilesRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -36,11 +47,7 @@ func newProfileManager() (*profiles.Manager, error) {
 	if err != nil {
 		return nil, errors.New("claude executable not found in PATH")
 	}
-	return &profiles.Manager{
-		Root:    filepath.Join(dataDir, profilesSubdir),
-		Claude:  claude,
-		Environ: os.Environ(),
-	}, nil
+	return &profiles.Manager{Root: root, Claude: claude, Environ: os.Environ()}, nil
 }
 
 func newAddCmd() *cobra.Command {
@@ -93,6 +100,75 @@ func newLoginCmd() *cobra.Command {
 			return loginAndValidate(cmd, m, p)
 		},
 	}
+}
+
+func newRemoveCmd() *cobra.Command {
+	var yes bool
+	cmd := &cobra.Command{
+		Use:     "remove <name>",
+		Aliases: []string{"rm"},
+		Short:   "Remove a profile",
+		Long: "Remove a profile. Its login is deleted from this computer; the account itself is not affected.\n\n" +
+			"A profile made with --existing is a link to your claude config directory: only the link is\n" +
+			"removed, your sessions, settings and login stay where they are. The sessions and settings a\n" +
+			"profile shares with the default directory are never deleted either.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			root, err := profilesRoot()
+			if err != nil {
+				return err
+			}
+			m := &profiles.Manager{Root: root}
+			p, err := m.Get(args[0])
+			if err != nil {
+				return err
+			}
+			linked := m.Linked(p)
+			if !yes {
+				question := fmt.Sprintf("Remove profile %s and delete its login from this computer?", p.Name)
+				if linked {
+					question = fmt.Sprintf("Remove profile %s? Only the link is removed; your claude config directory stays.", p.Name)
+				}
+				if !confirm(cmd, question) {
+					return errors.New("not removed (pass --yes to remove without asking)")
+				}
+			}
+			store, err := newStateStore()
+			if err != nil {
+				return err
+			}
+			if err := m.Remove(p.Name); err != nil {
+				return err
+			}
+			err = store.Update(func(st *state.State) error {
+				delete(st.Profiles, p.Name)
+				if st.Active == p.Name {
+					st.Active = ""
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			printf(cmd, "Removed profile %s\n", p.Name)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "remove without asking")
+	return cmd
+}
+
+// confirm asks a yes/no question on the terminal; anything but an explicit yes, and any
+// input that is not a terminal, counts as no.
+func confirm(cmd *cobra.Command, question string) bool {
+	in, ok := cmd.InOrStdin().(*os.File)
+	if !ok || !isTerminal(in) {
+		return false
+	}
+	printf(cmd, "%s [y/N] ", question)
+	answer, err := bufio.NewReader(in).ReadString('\n')
+	a := strings.ToLower(strings.TrimSpace(answer))
+	return err == nil && (a == "y" || a == "yes")
 }
 
 func loginAndValidate(cmd *cobra.Command, m *profiles.Manager, p profiles.Profile) error {

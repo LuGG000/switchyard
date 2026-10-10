@@ -146,6 +146,54 @@ func (m *Manager) List() ([]Profile, error) {
 	return out, nil
 }
 
+// Linked reports whether the profile directory is a link to another directory, as a
+// profile made by Adopt is.
+func (m *Manager) Linked(p Profile) bool {
+	info, err := os.Lstat(p.Dir)
+	return err == nil && isLink(info)
+}
+
+// Remove deletes the profile. A linked profile loses only the link; the directory it
+// points to is never touched. Links inside any other profile (the shared entries) are
+// removed as links and never followed, so the shared sessions and settings survive.
+func (m *Manager) Remove(name string) error {
+	p, err := m.Get(name)
+	if err != nil {
+		return err
+	}
+	if err := removeNoFollow(p.Dir); err != nil {
+		return fmt.Errorf("remove profile %s: %w", name, err)
+	}
+	return nil
+}
+
+// removeNoFollow deletes path and everything below it, removing links themselves
+// instead of descending into them.
+func removeNoFollow(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if isLink(info) || !info.IsDir() {
+		return os.Remove(path)
+	}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if err := removeNoFollow(filepath.Join(path, e.Name())); err != nil {
+			return err
+		}
+	}
+	return os.Remove(path)
+}
+
+// isLink reports whether info describes a symlink or a Windows junction.
+func isLink(info fs.FileInfo) bool {
+	return info.Mode()&(fs.ModeSymlink|fs.ModeIrregular) != 0
+}
+
 // Login runs the interactive `claude auth login` for p on the given streams.
 func (m *Manager) Login(ctx context.Context, p Profile, stdin io.Reader, stdout, stderr io.Writer) error {
 	cmd := m.command(ctx, p, "auth", "login")

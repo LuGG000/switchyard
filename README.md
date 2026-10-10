@@ -90,6 +90,7 @@ switchyard config set mode auto       # switch at a limit without asking
 switchyard config colors dark         # colors of the mod pane: default, dark or light
 switchyard mod install                # install the optional Claude Code mod
 switchyard login work1                # log a profile in again
+switchyard remove work1               # remove a profile (asks first; --yes skips the question)
 switchyard update                     # check for a newer release
 switchyard update --install           # download and install it
 switchyard repair                     # re-create the shared links
@@ -220,6 +221,13 @@ Anthropic's Consumer Terms do not explicitly address multiple accounts, and it
 is unclear whether rotating accounts to work around usage limits is tolerated.
 Use only your own accounts, one at a time. You accept the residual risk,
 including possible account restrictions.
+
+## Uninstall
+
+Remove each profile with `switchyard remove <name>`: a profile made with `--existing` loses only its
+link and your `~/.claude` stays untouched. Then remove the mod (`claude plugin uninstall
+switchyard-mod@switchyard`), the line from `switchyard shell-init` in your shell startup file, the
+`switchyard` binary, and the data and config folders. [docs/SETUP.md](docs/SETUP.md) lists the paths.
 
 ## License
 

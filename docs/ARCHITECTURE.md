@@ -6,7 +6,7 @@ This file describes what exists in the code and the decisions taken while buildi
 
 | Package | Purpose |
 | --- | --- |
-| `cmd/switchyard` | cobra CLI: `init add login list status switch handoff config run repair doctor` and the hidden `hook` command |
+| `cmd/switchyard` | cobra CLI: `init add remove login list status switch handoff config run repair doctor` and the hidden `hook` command |
 | `internal/config` | `config.toml` loading, defaults, validation; data and config directory lookup |
 | `internal/state` | `state.json` with inter-process file lock (`gofrs/flock`) and atomic writes |
 | `internal/profiles` | profile directories, `claude auth login/status` wrappers, subscription validation |
@@ -254,3 +254,16 @@ asks through buttons and keeps claude running meanwhile:
 - Verified on Windows with a real login: init, add --existing, list, doctor, repair and a run
   through the link. Not tried on macOS (the Keychain entry may depend on the config directory, so the
   login check can fail there) or Linux.
+
+## Removing a profile
+
+- `remove <name>` (alias `rm`, `--yes` skips the question) calls `Manager.Remove`, which deletes the
+  profile without ever following a link: a profile made with `--existing` loses only its link, and the
+  shared entries inside any other profile (symlinks, junctions) are removed as links, so the shared
+  sessions and settings survive. The walk is our own (`removeNoFollow`) instead of `os.RemoveAll`
+  because junctions are not reliably recognized there on Windows.
+- It needs no `claude` on the `PATH`. Without a terminal and without `--yes` it refuses. The profile's
+  entry in `state.json` is deleted, and `active` is cleared if it named the profile; a switchyard session
+  that is running with that profile should be closed first.
+- Verified on Windows with real junctions in a scratch directory (linked profile, profile with a linked
+  `projects`, unknown name); unit tests cover both cases on all platforms.
