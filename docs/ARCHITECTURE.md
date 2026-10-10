@@ -224,3 +224,19 @@ asks through buttons and keeps claude running meanwhile:
   was tested with `fakeclaude` and the mod with the test harness); the timer and the heartbeat were
   seen working in a real headless session. Matches sessions only by the shared state, so with
   several claude sessions at once any mod's buttons can answer.
+
+## Scripts and everyday use
+
+- `status --short` prints one line (`main 5h 33% 7d 19%`, or `main limit until 09:00` while cooling
+  down) and nothing without an active profile, for a shell prompt or tmux. It reads the state file
+  only, like `status --json`; the two flags exclude each other.
+- Exit codes (`exitCodeFor` in `cmd/switchyard/main.go`): claude's own code passes through, `75`
+  (`exitAllLimited`, EX_TEMPFAIL) is a `selector.AllLockedError` (every profile cooling down), any
+  other error is `1`. In interactive mode the all-locked case is a question, not an exit.
+- `shell-init <bash|zsh|fish|powershell>` prints a `claude` function. Only a plain start (no
+  arguments, or options first) goes through `switchyard run`; anything else, including
+  subcommands, calls the real claude, because `run` injects `--settings` and a subcommand would not
+  take it. The cost: `claude "a prompt"` is taken for a subcommand and runs without failover.
+  Verified in bash and PowerShell; zsh and fish are the same logic, not run.
+- `doctor` already checks `apiKeyHelper` and `env` in `settings.json`; the credential variables in
+  the environment are removed per run (`internal/claudeenv`).
