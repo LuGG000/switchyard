@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/detector"
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
@@ -29,6 +30,8 @@ type Runner struct {
 	Strategy string
 	// CarryContext resumes the conversation in the next profile instead of starting over.
 	CarryContext bool
+	// Limits bound the automatic switches; a run that would go over them stops.
+	Limits breaker.Limits
 	// Prepare records p as in use and returns the final claude arguments for it.
 	Prepare func(p profiles.Profile, args []string) ([]string, error)
 	// Now returns the current time.
@@ -81,6 +84,12 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 		}
 		next, err := r.markLimited(current)
 		if err != nil {
+			return code, err
+		}
+		if err := breaker.Allowed(r.Store, r.Limits, r.Now()); err != nil {
+			return code, fmt.Errorf("profile %s reached its limit; automatic switching is paused, so the run stops: %w", current.Name, err)
+		}
+		if err := breaker.Record(r.Store, r.Now()); err != nil {
 			return code, err
 		}
 		attemptArgs = args

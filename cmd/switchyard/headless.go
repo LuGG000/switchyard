@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/headless"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
@@ -42,6 +43,7 @@ func runHeadless(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p 
 		Profiles:     list,
 		Strategy:     cfg.Strategy,
 		CarryContext: cfg.CarryContext,
+		Limits:       breaker.FromConfig(cfg),
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)
 		},

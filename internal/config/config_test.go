@@ -44,6 +44,8 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		"mode":      "mode = \"maybe\"",
 		"strategy":  "strategy = \"random\"",
 		"threshold": "proactive_threshold = 101",
+		"interval":  "min_switch_interval_minutes = -1",
+		"daily max": "max_auto_switches_per_day = -2",
 		"syntax":    "mode = ",
 	}
 	for name, content := range tests {
@@ -191,7 +193,7 @@ func TestSetRejectsBadInputWithoutWriting(t *testing.T) {
 	if err := os.WriteFile(path, []byte("mode = 'ask'\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, change := range [][2]string{{KeyMode, "sometimes"}, {KeyCarryContext, "maybe"}, {KeyProactiveThreshold, "150"}, {KeyProactiveThreshold, "x"}, {"colour", "red"}, {"link", "a"}} {
+	for _, change := range [][2]string{{KeyMode, "sometimes"}, {KeyCarryContext, "maybe"}, {KeyProactiveThreshold, "150"}, {KeyProactiveThreshold, "x"}, {KeyMinSwitchInterval, "-5"}, {KeyMaxAutoSwitches, "many"}, {"colour", "red"}, {"link", "a"}} {
 		if err := Set(path, change[0], change[1]); err == nil {
 			t.Errorf("Set %v did not fail", change)
 		}
@@ -280,5 +282,27 @@ func TestUpdateCheckIsOnByDefaultAndCanBeTurnedOff(t *testing.T) {
 	cfg, err = Load(path)
 	if err != nil || cfg.UpdateCheck || !cfg.CarryContext {
 		t.Fatalf("after set: %+v, %v (carry_context must stay untouched)", cfg, err)
+	}
+}
+
+func TestSwitchLimitsDefaultToModerateAndCanBeChanged(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MinSwitchInterval != DefaultMinSwitchInterval || got.MaxAutoSwitches != DefaultMaxAutoSwitches {
+		t.Fatalf("defaults = %d minutes, %d per day", got.MinSwitchInterval, got.MaxAutoSwitches)
+	}
+
+	if err := SetAll(path, [][2]string{{KeyMinSwitchInterval, "30"}, {KeyMaxAutoSwitches, "0"}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MinSwitchInterval != 30 || got.MaxAutoSwitches != 0 {
+		t.Errorf("after Set = %d minutes, %d per day", got.MinSwitchInterval, got.MaxAutoSwitches)
 	}
 }

@@ -43,6 +43,8 @@ the hooks reach the launcher through the state file (see Decisions).
 | `continue_prompt` | empty | sent as the first message of a resumed session |
 | `update_check` | `true` | `status`, `list` and `doctor` mention a newer release (at most once a day, only on a terminal); `SWITCHYARD_NO_UPDATE_CHECK=1` also turns it off |
 | `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off |
+| `min_switch_interval_minutes` | `10` | minutes between two automatic switches, 0 = off |
+| `max_auto_switches_per_day` | `6` | most automatic switches in 24 hours, 0 = off |
 | `color_background`, `color_text`, `color_low`, `color_medium`, `color_high`, `color_border_active`, `color_border` | empty = default (the active border is green, the rest follows the theme) | colors of the mod pane: a theme key (`success`, `subtle`, ...), a color name or hex; `config colors` with default, dark or light sets all |
 | `source_dir` | empty = `~/.claude` | claude config dir whose entries are shared |
 | `link` | projects, settings.json, CLAUDE.md, skills, agents, commands, plugins | entries shared with every profile |
@@ -52,7 +54,8 @@ the hooks reach the launcher through the state file (see Decisions).
 `active` (profile name), `profiles.<name>` with `last_used`, `cooldown_until`,
 `five_hour` and `seven_day` (`used_percent`, `resets_at`, `updated_at`), and
 `switch_request` (`profile`, `reason`, `session_id`, `requested_at`; written by a
-hook, cleared by the launcher). New fields are added without bumping the
+hook, cleared by the launcher). `auto_switches` lists the times of the
+automatic switches of the last 24 hours (the circuit breaker). New fields are added without bumping the
 version; a file with a newer version is rejected.
 
 ## `status --json` (schema 1)
@@ -267,3 +270,17 @@ asks through buttons and keeps claude running meanwhile:
   that is running with that profile should be closed first.
 - Verified on Windows with real junctions in a scratch directory (linked profile, profile with a linked
   `projects`, unknown name); unit tests cover both cases on all platforms.
+
+## Limits on automatic switches
+
+- `internal/breaker` keeps the times of automatic switches in `state.json` (`auto_switches`, pruned to 24 hours) and
+  answers `Limits.Check`: a switch is refused when the last one is younger than `min_switch_interval_minutes` or
+  `max_auto_switches_per_day` are reached. The later of the two times is reported as "allowed again at".
+- Counted: switches switchyard decides alone, which are `auto` mode (including the threshold) and every headless
+  failover. Not counted and never blocked: the answer to the question, a mod button, `handoff`.
+- Interactive: in `auto` mode, `decide` asks the breaker; over a limit it prints why and asks like `ask` mode, and the
+  mod's buttons are used if a mod is present. Headless cannot ask: the run stops after marking the profile limited and
+  returns a `*breaker.TrippedError`, which `main` maps to exit code 76 (75 stays for "every profile at its limit").
+- The defaults (10 minutes, 6 per day) also apply to config files that do not mention the keys. The limit is a
+  calmer pattern, not a guarantee about how a provider sees accounts; the README says so.
+- Tested with unit tests of the arithmetic and of both runners against `fakeclaude`; not tried with a real limit (#1).

@@ -21,6 +21,12 @@ const (
 	ModeAuto = "auto"
 )
 
+// Defaults of the limits on automatic switches.
+const (
+	DefaultMinSwitchInterval = 10
+	DefaultMaxAutoSwitches   = 6
+)
+
 // Profile selection strategies.
 const (
 	StrategySequential   = "sequential"
@@ -47,6 +53,11 @@ type Config struct {
 	ContinuePrompt string `toml:"continue_prompt"`
 	// ProactiveThreshold switches at this five-hour usage percentage. Zero disables it.
 	ProactiveThreshold int `toml:"proactive_threshold"`
+	// MinSwitchInterval is the minutes that must pass after an automatic switch before the next
+	// one; until then the question is asked instead. Zero disables it.
+	MinSwitchInterval int `toml:"min_switch_interval_minutes"`
+	// MaxAutoSwitches is the most automatic switches in 24 hours. Zero disables it.
+	MaxAutoSwitches int `toml:"max_auto_switches_per_day"`
 	// UpdateCheck lets status, list and doctor mention a newer release once a day.
 	UpdateCheck bool `toml:"update_check"`
 	// The color settings style the mod's accounts pane; empty means the Claude theme's color.
@@ -67,11 +78,13 @@ type Config struct {
 // Default returns the configuration used when no file exists.
 func Default() Config {
 	return Config{
-		Mode:         ModeAsk,
-		CarryContext: true,
-		UpdateCheck:  true,
-		Strategy:     StrategySequential,
-		Link:         []string{"projects", "settings.json", "CLAUDE.md", "skills", "agents", "commands", "plugins"},
+		Mode:              ModeAsk,
+		CarryContext:      true,
+		UpdateCheck:       true,
+		MinSwitchInterval: DefaultMinSwitchInterval,
+		MaxAutoSwitches:   DefaultMaxAutoSwitches,
+		Strategy:          StrategySequential,
+		Link:              []string{"projects", "settings.json", "CLAUDE.md", "skills", "agents", "commands", "plugins"},
 	}
 }
 
@@ -92,6 +105,12 @@ func (c Config) Validate() error {
 	}
 	if c.ProactiveThreshold < 0 || c.ProactiveThreshold > 100 {
 		return fmt.Errorf("proactive_threshold: %d out of range 0-100", c.ProactiveThreshold)
+	}
+	if c.MinSwitchInterval < 0 {
+		return fmt.Errorf("min_switch_interval_minutes: %d is negative", c.MinSwitchInterval)
+	}
+	if c.MaxAutoSwitches < 0 {
+		return fmt.Errorf("max_auto_switches_per_day: %d is negative", c.MaxAutoSwitches)
 	}
 	return nil
 }
@@ -198,11 +217,13 @@ const (
 	KeyCarryContext       = "carry_context"
 	KeyStrategy           = "strategy"
 	KeyProactiveThreshold = "proactive_threshold"
+	KeyMinSwitchInterval  = "min_switch_interval_minutes"
+	KeyMaxAutoSwitches    = "max_auto_switches_per_day"
 	KeyUpdateCheck        = "update_check"
 )
 
 // SettableKeys lists the settings Set can change, in display order.
-var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold, KeyUpdateCheck}, ColorKeys...)
+var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold, KeyMinSwitchInterval, KeyMaxAutoSwitches, KeyUpdateCheck}, ColorKeys...)
 
 // Set changes one setting in the config file at path and leaves the rest of the
 // file, comments included, as it is. The value is checked before anything is
@@ -260,12 +281,19 @@ func apply(cfg *Config, key, value string) (string, error) {
 			cfg.CarryContext = b
 		}
 		return strconv.FormatBool(b), nil
-	case KeyProactiveThreshold:
+	case KeyProactiveThreshold, KeyMinSwitchInterval, KeyMaxAutoSwitches:
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return "", fmt.Errorf("%s: %q is not a whole number", key, value)
 		}
-		cfg.ProactiveThreshold = n
+		switch key {
+		case KeyProactiveThreshold:
+			cfg.ProactiveThreshold = n
+		case KeyMinSwitchInterval:
+			cfg.MinSwitchInterval = n
+		default:
+			cfg.MaxAutoSwitches = n
+		}
 		return strconv.Itoa(n), nil
 	}
 	if cfg.setColor(key, value) {

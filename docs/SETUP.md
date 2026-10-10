@@ -84,6 +84,8 @@ switchyard config set mode ask         # ask (default) or auto: switch without a
 switchyard config set carry_context true
 switchyard config set strategy sequential
 switchyard config set proactive_threshold 90   # switch at 90 % of the five-hour window, 0 = off
+switchyard config set min_switch_interval_minutes 10   # wait this long after an automatic switch, 0 = off
+switchyard config set max_auto_switches_per_day 6      # at most this many automatic switches in 24 hours, 0 = off
 ```
 
 `carry_context` continues the conversation in the next account; that account then reads the whole conversation

@@ -49,6 +49,13 @@ exit with code 75 so a script can wait and retry. `switchyard status` shows the 
 profile. A cooldown from a simulated limit ends by itself; how to clear it earlier is in
 [docs/MANUAL_TESTS.md](MANUAL_TESTS.md).
 
+## It asks instead of switching, or a run stops with exit code 76
+
+Automatic switches are limited: `min_switch_interval_minutes` after the last one and `max_auto_switches_per_day`
+per 24 hours (README, "Cautious switching"). Over a limit the `auto` mode asks, and a headless run stops with
+the time when switching is allowed again. Change or turn off a limit with `switchyard config set
+min_switch_interval_minutes <n>` or `max_auto_switches_per_day <n>` (0 = off).
+
 ## The mod does not show up or the buttons do nothing
 
 - Install it with `switchyard mod install`, then start claude through `switchyard run` and open `/switchyard`.

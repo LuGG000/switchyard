@@ -20,6 +20,8 @@ type configReport struct {
 	CarryContext       bool          `json:"carry_context"`
 	Strategy           string        `json:"strategy"`
 	ProactiveThreshold int           `json:"proactive_threshold"`
+	MinSwitchInterval  int           `json:"min_switch_interval_minutes"`
+	MaxAutoSwitches    int           `json:"max_auto_switches_per_day"`
 	UpdateCheck        bool          `json:"update_check"`
 	Colors             config.Colors `json:"colors"`
 }
@@ -34,6 +36,8 @@ func newConfigCmd() *cobra.Command {
 			"  carry_context        continue the conversation in the next profile\n" +
 			"  strategy             sequential, most-headroom or round-robin\n" +
 			"  proactive_threshold  five-hour usage in percent that triggers a switch, 0 = off\n" +
+			"  min_switch_interval_minutes  minutes between two automatic switches, 0 = off\n" +
+			"  max_auto_switches_per_day    most automatic switches in 24 hours, 0 = off\n" +
 			"  update_check         mention a newer release once a day (status, list, doctor)\n\n" +
 			"Change one with: switchyard config set <key> <value>. A running session picks the\n" +
 			"change up at its next limit.",
@@ -49,6 +53,8 @@ func newConfigCmd() *cobra.Command {
 				CarryContext:       cfg.CarryContext,
 				Strategy:           cfg.Strategy,
 				ProactiveThreshold: cfg.ProactiveThreshold,
+				MinSwitchInterval:  cfg.MinSwitchInterval,
+				MaxAutoSwitches:    cfg.MaxAutoSwitches,
 				UpdateCheck:        cfg.UpdateCheck,
 				Colors:             cfg.Palette(),
 			}
@@ -60,17 +66,19 @@ func newConfigCmd() *cobra.Command {
 				println(cmd, string(data))
 				return nil
 			}
-			printf(cmd, "%-20s %s\n", config.KeyMode, report.Mode)
-			printf(cmd, "%-20s %t\n", config.KeyCarryContext, report.CarryContext)
-			printf(cmd, "%-20s %s\n", config.KeyStrategy, report.Strategy)
-			printf(cmd, "%-20s %s\n", config.KeyProactiveThreshold, strconv.Itoa(report.ProactiveThreshold))
+			printf(cmd, "%-28s %s\n", config.KeyMode, report.Mode)
+			printf(cmd, "%-28s %t\n", config.KeyCarryContext, report.CarryContext)
+			printf(cmd, "%-28s %s\n", config.KeyStrategy, report.Strategy)
+			printf(cmd, "%-28s %s\n", config.KeyProactiveThreshold, strconv.Itoa(report.ProactiveThreshold))
+			printf(cmd, "%-28s %s\n", config.KeyMinSwitchInterval, strconv.Itoa(report.MinSwitchInterval))
+			printf(cmd, "%-28s %s\n", config.KeyMaxAutoSwitches, strconv.Itoa(report.MaxAutoSwitches))
 			colors := report.Colors
 			for _, kv := range [][2]string{
 				{config.KeyColorBackground, colors.Background}, {config.KeyColorText, colors.Text},
 				{config.KeyColorLow, colors.Low}, {config.KeyColorMedium, colors.Medium}, {config.KeyColorHigh, colors.High},
 				{config.KeyColorBorderActive, colors.BorderActive}, {config.KeyColorBorder, colors.Border},
 			} {
-				printf(cmd, "%-20s %s\n", kv[0], colorOrTheme(kv[1]))
+				printf(cmd, "%-28s %s\n", kv[0], colorOrTheme(kv[1]))
 			}
 			return nil
 		},

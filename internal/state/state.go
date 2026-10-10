@@ -74,6 +74,8 @@ type State struct {
 	Profiles      map[string]Profile `json:"profiles"`
 	SwitchRequest *SwitchRequest     `json:"switch_request,omitempty"`
 	Decision      *Decision          `json:"decision,omitempty"`
+	// AutoSwitches are the times of the automatic switches of the last 24 hours, oldest first.
+	AutoSwitches []time.Time `json:"auto_switches,omitempty"`
 }
 
 // Store reads and writes one state file.

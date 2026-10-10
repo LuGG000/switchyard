@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/config"
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
@@ -393,5 +394,78 @@ func TestUnreadableConfigKeepsTheSettingsInUse(t *testing.T) {
 	}
 	if !slices.Contains(f.launches, "b") {
 		t.Errorf("launches = %v", f.launches)
+	}
+}
+
+// seedSwitches records automatic switches the given number of minutes ago, oldest first.
+func (f *fixture) seedSwitches(t *testing.T, minutesAgo ...int) {
+	t.Helper()
+	err := f.store.Update(func(st *state.State) error {
+		for _, m := range minutesAgo {
+			st.AutoSwitches = append(st.AutoSwitches, time.Now().Add(-time.Duration(m)*time.Minute))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAutoSwitchIsRecorded(t *testing.T) {
+	f := newFixture(t, "", "a-limited", "b")
+	f.runner.Limits = breaker.Limits{MinInterval: 10 * time.Minute, MaxPerDay: 6}
+	if code, err := f.run(t); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if st, _ := f.store.Read(); len(st.AutoSwitches) != 1 {
+		t.Errorf("AutoSwitches = %v, want one entry", st.AutoSwitches)
+	}
+}
+
+func TestAutoSwitchAsksWhileTheLimitsAreReached(t *testing.T) {
+	tests := []struct {
+		name   string
+		limits breaker.Limits
+		seed   []int
+		answer string
+		paused string
+	}{
+		{"minimum interval, quit", breaker.Limits{MinInterval: 10 * time.Minute}, []int{2}, "q\n", "the last automatic switch was"},
+		{"minimum interval, switch anyway", breaker.Limits{MinInterval: 10 * time.Minute}, []int{2}, "y\n", "the last automatic switch was"},
+		{"daily maximum, quit", breaker.Limits{MaxPerDay: 2}, []int{300, 120}, "q\n", "2 automatic switches in the last 24 hours (maximum 2)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t, "", "a-limited", "b")
+			f.runner.Limits = tt.limits
+			f.runner.In = strings.NewReader(tt.answer)
+			f.seedSwitches(t, tt.seed...)
+			if code, err := f.run(t); err != nil || code != 0 {
+				t.Fatalf("Run = %d, %v", code, err)
+			}
+			out := f.out.String()
+			if !strings.Contains(out, "automatic switching is paused: "+tt.paused) || !strings.Contains(out, "Switch to b?") {
+				t.Errorf("output = %q, want the pause and the question", out)
+			}
+			switched := slices.Contains(f.launches, "b")
+			if switched != (tt.answer == "y\n") {
+				t.Errorf("switched = %v with answer %q (launches %v)", switched, tt.answer, f.launches)
+			}
+			if st, _ := f.store.Read(); len(st.AutoSwitches) != len(tt.seed) {
+				t.Errorf("a switch the user chose was recorded: %v", st.AutoSwitches)
+			}
+		})
+	}
+}
+
+func TestAutoSwitchProceedsOnceTheIntervalHasPassed(t *testing.T) {
+	f := newFixture(t, "", "a-limited", "b")
+	f.runner.Limits = breaker.Limits{MinInterval: 10 * time.Minute}
+	f.seedSwitches(t, 30)
+	if code, err := f.run(t); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if !slices.Equal(f.launches, []string{"a-limited", "b"}) || strings.Contains(f.out.String(), "paused") {
+		t.Errorf("launches = %v, output = %q", f.launches, f.out.String())
 	}
 }

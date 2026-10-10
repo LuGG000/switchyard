@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/config"
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
@@ -42,6 +43,8 @@ type Runner struct {
 	Strategy string
 	// CarryContext is the default for resuming the conversation in the next profile.
 	CarryContext bool
+	// Limits bound the automatic switches; over them, automatic mode asks like ask mode.
+	Limits breaker.Limits
 	// ContinuePrompt is sent as the first message of a resumed conversation. Empty sends nothing.
 	ContinuePrompt string
 	// Prepare records p as in use and returns the final claude arguments for it.
@@ -187,7 +190,7 @@ func (r *Runner) askMod(ctx context.Context, p profiles.Profile, req state.Switc
 		return nil
 	}
 	r.reload()
-	if r.Mode != config.ModeAsk || !r.modPresent(since) {
+	if auto, _ := r.automatic(); auto || !r.modPresent(since) {
 		return nil
 	}
 	st, err := r.Store.Read()
@@ -271,11 +274,18 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 			if locked != nil {
 				return nil, false, err
 			}
-			r.printf("switchyard: profile %s %s, continuing with %s\n", current.Name, describe(req.Reason), next.Name)
-			if r.CarryContext {
-				r.printf("%s\n", ColdCacheHint)
+			if auto, paused := r.automatic(); auto {
+				if err := breaker.Record(r.Store, r.Now()); err != nil {
+					return nil, false, err
+				}
+				r.printf("switchyard: profile %s %s, continuing with %s\n", current.Name, describe(req.Reason), next.Name)
+				if r.CarryContext {
+					r.printf("%s\n", ColdCacheHint)
+				}
+				return &next, r.CarryContext, nil
+			} else if paused != nil {
+				r.printf("switchyard: automatic switching is paused: %v\n", paused)
 			}
-			return &next, r.CarryContext, nil
 		}
 
 		answer, err := r.ask(ctx, current, req, next, locked)
@@ -297,6 +307,19 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 			return nil, false, nil
 		}
 	}
+}
+
+// automatic reports whether a switch may happen without asking: the mode is auto and the
+// limits on automatic switches are not reached. When the limits are the reason it is not,
+// the second result says which.
+func (r *Runner) automatic() (bool, error) {
+	if r.Mode != config.ModeAuto {
+		return false, nil
+	}
+	if err := breaker.Allowed(r.Store, r.Limits, r.Now()); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // ask shows the situation and returns the answer: "y" switch and carry the
@@ -421,4 +444,5 @@ func (r *Runner) reload() {
 		return
 	}
 	r.Mode, r.Strategy, r.CarryContext, r.ContinuePrompt = cfg.Mode, cfg.Strategy, cfg.CarryContext, cfg.ContinuePrompt
+	r.Limits = breaker.FromConfig(cfg)
 }
