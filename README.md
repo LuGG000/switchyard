@@ -148,7 +148,7 @@ one setting and a running session picks it up at its next limit.
 
 | Key | Values | Meaning |
 | --- | --- | --- |
-| `mode` | `ask` (default), `auto` | at a limit, ask in the terminal or switch at once |
+| `mode` | `ask` (default), `auto` | at a limit, ask what to do (in the terminal or with the mod's buttons) or switch at once |
 | `carry_context` | `true` (default), `false` | continue the conversation in the next profile |
 | `strategy` | `sequential` (default), `most-headroom`, `round-robin` | how the next profile is chosen |
 | `proactive_threshold` | `0` (off) to `100` | five-hour usage in percent at which to switch: 50 uses half of a window, 90 keeps 10% left |
@@ -230,7 +230,7 @@ and may change between releases.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): fixes for the usual problems
 - [docs/SPIKE.md](docs/SPIKE.md): what was verified against `claude`
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test and contribute
-- [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 
 ## Scope
 
