@@ -20,17 +20,26 @@ const (
 	timeout  = 10 * time.Second
 )
 
-// windowsScript shows a toast under PowerShell's own application id, which every Windows
-// has registered, so no shortcut or package is needed. The text comes from the environment
-// and is never part of the script.
+// appID is the name notifications appear under on Windows.
+const appID = "switchyard"
+
+// windowsScript shows a toast under the application id "switchyard". A notification needs a
+// registered id to carry a name other than PowerShell's; the script registers it once, for the
+// current user only (HKCU, no administrator rights), with the display name. The text comes from
+// the environment and is never part of the script.
 const windowsScript = `$ErrorActionPreference = 'Stop'
+$key = 'HKCU:\Software\Classes\AppUserModelId\` + appID + `'
+if (-not (Test-Path $key)) {
+  [void](New-Item -Path $key -Force)
+  [void](New-ItemProperty -Path $key -Name DisplayName -Value '` + appID + `' -PropertyType String -Force)
+}
 [void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
 $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
 $text = $xml.GetElementsByTagName('text')
 [void]$text.Item(0).AppendChild($xml.CreateTextNode($env:` + titleVar + `))
 [void]$text.Item(1).AppendChild($xml.CreateTextNode($env:` + bodyVar + `))
 $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show($toast)`
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('` + appID + `').Show($toast)`
 
 // macScript reads the text from the environment, so quotes in it cannot break the script.
 const macScript = `display notification (system attribute "` + bodyVar + `") with title (system attribute "` + titleVar + `")`

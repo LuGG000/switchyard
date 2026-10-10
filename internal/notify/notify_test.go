@@ -50,6 +50,7 @@ func TestCommandUsesTheSystemsOwnTools(t *testing.T) {
 
 // TestShowARealNotification shows a real notification; it is off unless asked for, because it
 // pops up on the screen: SWITCHYARD_NOTIFY_REAL=1 go test ./internal/notify -run Real -v
+// (PowerShell: $env:SWITCHYARD_NOTIFY_REAL = "1"; go test ./internal/notify -run Real -v)
 func TestShowARealNotification(t *testing.T) {
 	if os.Getenv("SWITCHYARD_NOTIFY_REAL") == "" {
 		t.Skip("set SWITCHYARD_NOTIFY_REAL=1 to show a notification")
