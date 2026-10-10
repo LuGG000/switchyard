@@ -41,6 +41,15 @@ export type Snapshot =
   /** The command reports a schema this mod does not read. */
   | { kind: 'incompatible'; schema: number | null }
 
+/** A limit waiting for an answer from the pane's buttons, from `switchyard decision --json`. */
+export type Pending = {
+  profile: string
+  reason: string
+  options: string[]
+  carry: boolean
+  expires_at: string
+}
+
 /** The color the style page edits. */
 export type ColorSlot = 'background' | 'text' | 'low' | 'medium' | 'high' | 'active' | 'border'
 
@@ -49,6 +58,6 @@ export type Page = 'main' | 'style'
 
 declare module 'claude-code' {
   interface PluginState {
-    'switchyard-mod': { snapshot: Snapshot | null; page: Page; slot: ColorSlot }
+    'switchyard-mod': { snapshot: Snapshot | null; page: Page; slot: ColorSlot; decision: Pending | null }
   }
 }

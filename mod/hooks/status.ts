@@ -1,4 +1,4 @@
-import type { Colors, Page, ProfileStatus, Settings, Snapshot, UpdateInfo } from '../types'
+import type { Colors, Page, Pending, ProfileStatus, Settings, Snapshot, UpdateInfo } from '../types'
 
 /** The `status --json` schema this mod reads. */
 export const SUPPORTED_SCHEMA = 1
@@ -263,4 +263,37 @@ function parseUpdate(value: unknown): UpdateInfo | null {
   return isRecord(value) && typeof value.version === 'string' && typeof value.url === 'string'
     ? { version: value.version, url: value.url }
     : null
+}
+
+/** The `decision --json` schema this mod reads. */
+export const SUPPORTED_DECISION_SCHEMA = 1
+
+/** The limit that waits for an answer; null when there is none or the output is not a report this mod reads. */
+export function parseDecision(stdout: string): Pending | null {
+  let report: unknown
+  try {
+    report = JSON.parse(stdout)
+  } catch {
+    return null
+  }
+  if (!isRecord(report) || report.schema !== SUPPORTED_DECISION_SCHEMA || !isRecord(report.pending)) {
+    return null
+  }
+  const { profile, reason, options, carry, expires_at } = report.pending
+  if (
+    typeof profile !== 'string' ||
+    typeof reason !== 'string' ||
+    typeof carry !== 'boolean' ||
+    typeof expires_at !== 'string' ||
+    !Array.isArray(options)
+  ) {
+    return null
+  }
+
+  return { profile, reason, options: options.filter((o): o is string => typeof o === 'string'), carry, expires_at }
+}
+
+/** Whole seconds left until `iso`, never negative. */
+export function secondsLeft(iso: string, now: number): number {
+  return Math.max(0, Math.ceil((Date.parse(iso) - now) / 1000))
 }

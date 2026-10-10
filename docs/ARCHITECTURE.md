@@ -200,3 +200,27 @@ Consumers must check `schema` first.
   `/switchyard update`) and runs `switchyard update --install` as a background process; it does
   not touch the claude session. The mod itself is a plugin and is updated with
   `claude plugin update switchyard-mod@switchyard`.
+
+### Buttons for the ask question (mod and launcher)
+
+In `ask` mode the launcher used to end claude at a limit and ask in the terminal. With the mod it
+asks through buttons and keeps claude running meanwhile:
+
+- The mod polls `switchyard decision --json` every 2 seconds (`$.clock.every`). Each call touches
+  the file `mod-heartbeat` in the data dir (a file of its own, so the polling does not rewrite
+  `state.json`). The launcher counts a mod as present if the heartbeat is newer than the launch
+  and at most 10 seconds old. Without a mod, or with a stale heartbeat, nothing changes.
+- On a rate-limit request in `ask` mode with a mod present and at least one profile out of
+  cooldown, the launcher writes `Decision{profile, options, carry, expires_at}` into `state.json`
+  and waits up to 2 minutes, claude still running. The mod shows it in the pane (it opens the pane
+  and shows a toast when a new question appears): **Continue in X**, **New conversation in X** for
+  every option, and **Stay here**. A button calls `switchyard decision answer switch <profile>
+  [--resume|--fresh]` or `answer stay`, which stores an `Answer` in the decision.
+- `switch` ends claude and relaunches like a manual handoff (the limited profile goes into cooldown);
+  `stay` clears the request and keeps claude running; no answer in time, a vanished mod or an error
+  falls back to the terminal question (the request is not lost). Auto mode and threshold requests
+  never use the buttons.
+- Not verified: how a real claude behaves while it sits at a limit and waits (the decision path
+  was tested with `fakeclaude` and the mod with the test harness); the timer and the heartbeat were
+  seen working in a real headless session. Matches sessions only by the shared state, so with
+  several claude sessions at once any mod's buttons can answer.
