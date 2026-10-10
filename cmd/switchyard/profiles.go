@@ -44,14 +44,22 @@ func newProfileManager() (*profiles.Manager, error) {
 }
 
 func newAddCmd() *cobra.Command {
-	return &cobra.Command{
+	var existing bool
+	cmd := &cobra.Command{
 		Use:   "add <name>",
 		Short: "Create a profile and log it in with a claude.ai subscription",
-		Args:  cobra.ExactArgs(1),
+		Long: "Create a profile and log it in with a claude.ai subscription.\n\n" +
+			"With --existing the profile is your existing claude config directory (~/.claude, or source_dir\n" +
+			"in the config) and its login: nothing is copied and there is no new login. The directory is\n" +
+			"linked, so a plain claude and switchyard keep using the same sessions and settings.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := newProfileManager()
 			if err != nil {
 				return err
+			}
+			if existing {
+				return adoptExisting(cmd, m, args[0])
 			}
 			p, err := m.Create(args[0])
 			if err != nil {
@@ -64,6 +72,8 @@ func newAddCmd() *cobra.Command {
 			return loginAndValidate(cmd, m, p)
 		},
 	}
+	cmd.Flags().BoolVar(&existing, "existing", false, "use your existing claude config directory and its login as the profile")
+	return cmd
 }
 
 func newLoginCmd() *cobra.Command {
@@ -143,4 +153,27 @@ func describePlan(st profiles.AuthStatus) string {
 		return "subscription"
 	}
 	return st.SubscriptionType
+}
+
+// adoptExisting makes the existing claude config directory the profile name and checks its login.
+func adoptExisting(cmd *cobra.Command, m *profiles.Manager, name string) error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	source, err := cfg.ResolveSourceDir()
+	if err != nil {
+		return err
+	}
+	p, err := m.Adopt(name, source)
+	if err != nil {
+		return err
+	}
+	printf(cmd, "Profile %s uses your existing config directory %s\n", p.Name, source)
+	st, err := m.Validate(cmd.Context(), p)
+	if err != nil {
+		return fmt.Errorf("%w (log in with: switchyard login %s)", err, p.Name)
+	}
+	printf(cmd, "Profile %s is logged in (%s)\n", p.Name, describePlan(st))
+	return nil
 }

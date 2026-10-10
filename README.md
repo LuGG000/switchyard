@@ -57,6 +57,7 @@ but does not verify the signature itself.
 ```
 switchyard init                       # create the default config.toml
 switchyard add work1                  # create a profile and log it in
+switchyard add main --existing      # use your existing ~/.claude login as a profile, no new login
 switchyard list                       # profiles and their login state
 switchyard status [--json]            # active profile, last use, cooldowns
 switchyard status --short           # one line for a shell prompt or tmux: main 5h 33% 7d 19%
@@ -82,6 +83,15 @@ switchyard shell-init bash            # a claude function that always starts thr
 Without `--resume` or `--fresh`, `carry_context` decides. Carrying the context
 makes the new account process it again with a cold prompt cache, and it counts
 against that account's limit.
+
+### Your existing login
+
+If you already use claude, `switchyard init` finds the subscription login in `~/.claude` and offers it
+as the first profile; `switchyard add main --existing` does the same later. Nothing is copied and
+there is no new login: the profile is a link to that directory, so a plain `claude` and switchyard
+share the same sessions and settings. Add further accounts with `switchyard add <name>`. On macOS
+claude may keep the login in the Keychain under a name that depends on the config directory, so
+the check can fail there; then run `switchyard login main`. Not tried on macOS.
 
 ### Start it every time
 
