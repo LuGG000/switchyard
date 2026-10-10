@@ -83,7 +83,7 @@ func TestConfigColors(t *testing.T) {
 		t.Fatal(err)
 	}
 	text, _ := runConfig(t)
-	if !strings.Contains(text, "color_background     (theme)") {
+	if !strings.Contains(text, "color_background             (theme)") {
 		t.Errorf("output %q does not show the theme default", text)
 	}
 	if _, err := runConfig(t, "colors", "neon"); err == nil {

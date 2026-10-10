@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/selector"
 )
 
@@ -35,6 +36,7 @@ func TestExitCodes(t *testing.T) {
 		{"success", nil, 0, false},
 		{"claude's own code passes through", exitError{code: 3}, 3, false},
 		{"every profile at its limit", locked, exitAllLimited, true},
+		{"the switch limits stop a run", fmt.Errorf("profile main reached its limit: %w", &breaker.TrippedError{Reason: "x", Until: time.Now()}), exitSwitchPaused, true},
 		{"anything else", errors.New("boom"), 1, true},
 	}
 	for _, tt := range tests {

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/config"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
@@ -248,5 +249,40 @@ func TestRunWithoutProfiles(t *testing.T) {
 	_, err := f.runner.Run(context.Background(), profiles.Profile{Name: "a"}, []string{"-p", "hello"})
 	if !errors.Is(err, selector.ErrNoCandidates) {
 		t.Errorf("err = %v, want ErrNoCandidates", err)
+	}
+}
+
+func TestSwitchIsRecorded(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.Limits = breaker.Limits{MinInterval: 10 * time.Minute, MaxPerDay: 6}
+	if code, err := f.runner.Run(context.Background(), f.runner.Profiles[0], []string{"-p", "hello"}); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if st, _ := f.store.Read(); len(st.AutoSwitches) != 1 {
+		t.Errorf("AutoSwitches = %v, want one entry", st.AutoSwitches)
+	}
+}
+
+func TestRunStopsWhileTheLimitsAreReached(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.Limits = breaker.Limits{MinInterval: 10 * time.Minute}
+	err := f.store.Update(func(st *state.State) error {
+		st.AutoSwitches = []time.Time{time.Now().Add(-2 * time.Minute)}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	code, err := f.runner.Run(context.Background(), f.runner.Profiles[0], []string{"-p", "hello"})
+	var tripped *breaker.TrippedError
+	if !errors.As(err, &tripped) {
+		t.Fatalf("Run = %d, %v, want a TrippedError", code, err)
+	}
+	if len(f.attempts) != 1 {
+		t.Errorf("%d attempts, want 1: the run must not continue in the next profile", len(f.attempts))
+	}
+	if st, _ := f.store.Read(); !st.Profiles["a-limited"].CooldownUntil.After(time.Now()) || len(st.AutoSwitches) != 1 {
+		t.Errorf("state = %+v, want the limited profile in cooldown and no new switch", st)
 	}
 }

@@ -135,8 +135,9 @@ zsh and fish use the same logic but have not been run.
 ### Exit codes
 
 For scripts: `run` returns claude's own exit code. `75` means every profile is at its limit (the
-message says when the first is available again), so a script can wait and retry. Other
-switchyard errors, and `doctor` when it finds a problem, return `1`.
+message says when the first is available again), so a script can wait and retry. `76` means a
+headless run stopped because the limits on automatic switches are reached ([Cautious switching](#cautious-switching)).
+Other switchyard errors, and `doctor` when it finds a problem, return `1`.
 
 ## Configuration
 
@@ -149,8 +150,20 @@ one setting and a running session picks it up at its next limit.
 | `carry_context` | `true` (default), `false` | continue the conversation in the next profile |
 | `strategy` | `sequential` (default), `most-headroom`, `round-robin` | how the next profile is chosen |
 | `proactive_threshold` | `0` (off) to `100` | five-hour usage in percent that triggers a switch |
+| `min_switch_interval_minutes` | `10` (default), `0` = off | minutes that must pass after an automatic switch before the next; until then it asks instead |
+| `max_auto_switches_per_day` | `6` (default), `0` = off | most automatic switches in 24 hours; over that it asks instead |
 | `update_check` | `true` (default), `false` | mention a newer release after `status`, `list` and `doctor` |
 | `color_*` | color or empty | colors of the mod pane, see [mod/README.md](mod/README.md) |
+
+### Cautious switching
+
+Two nearly empty accounts could otherwise alternate every few minutes. Automatic switches (`mode = auto`,
+the threshold, and every headless failover) are therefore limited: after one, the next must wait
+`min_switch_interval_minutes`, and there are at most `max_auto_switches_per_day` in 24 hours. Over a limit,
+`auto` asks like `ask` mode (in the terminal or with the mod's buttons), and a headless run stops with exit
+code `76` and says when switching is allowed again. A switch you choose yourself (an answer, a mod button,
+`handoff`) is never blocked and not counted. Set a limit to `0` to turn it off. This makes the switching
+pattern calmer and keeps unattended runs bounded; it is no guarantee about how a provider treats accounts.
 
 ## Updates
 

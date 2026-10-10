@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/interactive"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
@@ -51,6 +52,7 @@ func runInteractive(cmd *cobra.Command, m *profiles.Manager, store *state.Store,
 		ModWait:        modWait,
 		ModStale:       modStale,
 		CarryContext:   cfg.CarryContext,
+		Limits:         breaker.FromConfig(cfg),
 		ContinuePrompt: cfg.ContinuePrompt,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)
