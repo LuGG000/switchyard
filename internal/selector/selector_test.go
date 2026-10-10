@@ -1,6 +1,7 @@
 package selector
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -97,5 +98,17 @@ func TestNextDoesNotReorderInput(t *testing.T) {
 	}
 	if in[0].Name != "b" {
 		t.Error("input slice was reordered")
+	}
+}
+
+func TestWaitUntil(t *testing.T) {
+	now := time.Now
+	if err := WaitUntil(context.Background(), now().Add(-time.Minute), now); err != nil {
+		t.Errorf("a time in the past: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := WaitUntil(ctx, now().Add(time.Hour), now); !errors.Is(err, context.Canceled) {
+		t.Errorf("a canceled wait = %v, want context.Canceled", err)
 	}
 }

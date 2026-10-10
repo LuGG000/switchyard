@@ -54,6 +54,8 @@ type Runner struct {
 	Reload func() (config.Config, error)
 	// Now returns the current time.
 	Now func() time.Time
+	// Wait blocks until the given time; nil waits on the clock. Tests replace it.
+	Wait func(ctx context.Context, until time.Time) error
 	// Poll is how often the state is checked for a switch request.
 	Poll time.Duration
 	// StopGrace is how long claude gets to exit when it is ended.
@@ -272,7 +274,11 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 		}
 		if r.Mode == config.ModeAuto {
 			if locked != nil {
-				return nil, false, err
+				r.printf("switchyard: every profile is at its limit; waiting until %s (Ctrl+C stops)\n", locked.EarliestReset.Local().Format("15:04"))
+				if quit, err := r.waitUntil(ctx, locked.EarliestReset); quit || err != nil {
+					return nil, false, err
+				}
+				continue
 			}
 			if auto, paused := r.automatic(); auto {
 				if err := breaker.Record(r.Store, r.Now()); err != nil {
@@ -299,8 +305,8 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 			return &next, false, nil
 		case "w":
 			until := r.waitTarget(current, locked)
-			r.printf("switchyard: waiting until %s\n", until.Local().Format("15:04"))
-			if err := r.sleepUntil(ctx, until); err != nil {
+			r.printf("switchyard: waiting until %s (Ctrl+C stops)\n", until.Local().Format("15:04"))
+			if quit, err := r.waitUntil(ctx, until); quit || err != nil {
 				return nil, false, err
 			}
 		default:
@@ -374,15 +380,20 @@ func (r *Runner) waitTarget(current profiles.Profile, locked *selector.AllLocked
 	return st.Profiles[current.Name].CooldownUntil
 }
 
-func (r *Runner) sleepUntil(ctx context.Context, t time.Time) error {
-	timer := time.NewTimer(t.Sub(r.Now()))
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
+// waitUntil waits for t. A stop with Ctrl+C is the user quitting: quit is true and there is no error.
+func (r *Runner) waitUntil(ctx context.Context, t time.Time) (quit bool, err error) {
+	wait := r.Wait
+	if wait == nil {
+		wait = func(ctx context.Context, until time.Time) error { return selector.WaitUntil(ctx, until, r.Now) }
 	}
+	if err := wait(ctx, t); err != nil {
+		if ctx.Err() != nil {
+			r.printf("switchyard: stopped waiting\n")
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
 }
 
 func describe(reason string) string {

@@ -5,6 +5,7 @@ package headless
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +37,11 @@ type Runner struct {
 	Prepare func(p profiles.Profile, args []string) ([]string, error)
 	// Now returns the current time.
 	Now func() time.Time
+	// WaitForReset makes a run that finds every profile at its limit wait for the first
+	// reset and go on, instead of stopping.
+	WaitForReset bool
+	// Wait blocks until the given time; nil waits on the clock. Tests replace it.
+	Wait func(ctx context.Context, until time.Time) error
 	// Notice receives a line for every switch.
 	Notice io.Writer
 }
@@ -55,7 +61,10 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 	current := start
 	attemptArgs := args
 	var sessionID string
-	for range len(r.Profiles) {
+	// Every profile gets one attempt; a wait for a reset starts the count again.
+	budget := len(r.Profiles)
+	for budget > 0 {
+		budget--
 		claudeArgs, err := r.Prepare(current, attemptArgs)
 		if err != nil {
 			return 0, err
@@ -82,9 +91,12 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 		if result.SessionID != "" {
 			sessionID = result.SessionID
 		}
-		next, err := r.markLimited(current)
+		next, waited, err := r.markLimitedAndChoose(ctx, current)
 		if err != nil {
 			return code, err
+		}
+		if waited {
+			budget = len(r.Profiles)
 		}
 		if err := breaker.Allowed(r.Store, r.Limits, r.Now()); err != nil {
 			return code, fmt.Errorf("profile %s reached its limit; automatic switching is paused, so the run stops: %w", current.Name, err)
@@ -121,13 +133,31 @@ func (r *Runner) recordUsage(p profiles.Profile, result detector.Result) error {
 	})
 }
 
-// markLimited puts current into cooldown and returns the profile to continue with.
-func (r *Runner) markLimited(current profiles.Profile) (profiles.Profile, error) {
+// markLimitedAndChoose puts current into cooldown and returns the profile to continue
+// with. When every profile is at its limit and WaitForReset is set, it waits for the
+// first reset (and says so), which waited reports; otherwise the selector's error
+// ends the run.
+func (r *Runner) markLimitedAndChoose(ctx context.Context, current profiles.Profile) (next profiles.Profile, waited bool, err error) {
 	h := hooks.Handler{Store: r.Store, Profile: current.Name, Now: r.Now}
 	if err := h.MarkLimited(); err != nil {
-		return profiles.Profile{}, err
+		return profiles.Profile{}, false, err
 	}
-	return selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, r.Now())
+	for {
+		next, err := selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, r.Now())
+		var locked *selector.AllLockedError
+		if !errors.As(err, &locked) || !r.WaitForReset {
+			return next, waited, err
+		}
+		_, _ = fmt.Fprintf(r.Notice, "switchyard: every profile is at its limit; waiting until %s (Ctrl+C stops)\n", locked.EarliestReset.Local().Format("15:04"))
+		wait := r.Wait
+		if wait == nil {
+			wait = func(ctx context.Context, until time.Time) error { return selector.WaitUntil(ctx, until, r.Now) }
+		}
+		if err := wait(ctx, locked.EarliestReset); err != nil {
+			return profiles.Profile{}, waited, err
+		}
+		waited = true
+	}
 }
 
 // replayableStdin hands every attempt the same input. A terminal is passed

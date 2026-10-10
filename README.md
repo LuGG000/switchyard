@@ -84,6 +84,7 @@ switchyard status [--json]            # active profile, last use, cooldowns
 switchyard status --short             # one line for a shell prompt or tmux: main 5h 33% 7d 19%
 switchyard run                        # run claude with the active profile (options go after --, e.g. run -- --model opus)
 switchyard run -- -p "prompt"         # headless run that fails over at a limit
+switchyard run --wait -- -p "prompt"   # the same, and wait for the first reset if every profile is at its limit
 switchyard switch work2 --resume      # switch and continue the current conversation
 switchyard switch work2 --fresh       # switch and start a new conversation
 switchyard switch work2 --no-launch   # only change the active profile
@@ -135,7 +136,8 @@ zsh and fish use the same logic but have not been run.
 ### Exit codes
 
 For scripts: `run` returns claude's own exit code. `75` means every profile is at its limit (the
-message says when the first is available again), so a script can wait and retry. `76` means a
+message says when the first is available again), so a script can wait and retry. With `--wait` a headless run waits for
+the first reset itself and continues (Ctrl+C stops it); an interactive session does that without a flag. `76` means a
 headless run stopped because the limits on automatic switches are reached ([Cautious switching](#cautious-switching)).
 Other switchyard errors, and `doctor` when it finds a problem, return `1`.
 

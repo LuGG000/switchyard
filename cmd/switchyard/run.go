@@ -32,13 +32,16 @@ func newStateStore() (*state.Store, error) {
 
 func newRunCmd() *cobra.Command {
 	var profileName string
+	var waitForReset bool
 	cmd := &cobra.Command{
 		Use:   "run [flags] [-- claude args...]",
 		Short: "Run claude with the active profile",
 		Long: "Run claude with the credentials of a profile. Arguments after -- are passed to claude.\n" +
 			"Without --profile the active profile is used, or the first profile if none is active.\n\n" +
 			"A headless run (switchyard run -- -p \"prompt\") moves on to the next profile when the\n" +
-			"current one hits its limit and continues the conversation there (see carry_context).",
+			"current one hits its limit and continues the conversation there (see carry_context).\n\n" +
+			"If every profile is at its limit, a headless run stops with exit code 75; with --wait it waits for\n" +
+			"the first reset and goes on (Ctrl+C stops). An interactive run waits for it by itself.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := newProfileManager()
 			if err != nil {
@@ -53,12 +56,13 @@ func newRunCmd() *cobra.Command {
 				return err
 			}
 			if isHeadless(args) {
-				return runHeadless(cmd, m, store, p, args)
+				return runHeadless(cmd, m, store, p, args, waitForReset)
 			}
 			return runInteractive(cmd, m, store, p, args)
 		},
 	}
 	cmd.Flags().StringVarP(&profileName, "profile", "p", "", "profile to use instead of the active one")
+	cmd.Flags().BoolVar(&waitForReset, "wait", false, "headless: when every profile is at its limit, wait for the first reset and continue")
 	return cmd
 }
 
