@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"text/tabwriter"
 	"time"
 
@@ -119,11 +120,15 @@ func optionalTime(t time.Time) *time.Time {
 }
 
 func printStatus(cmd *cobra.Command, report statusReport) error {
+	return writeStatus(cmd.OutOrStdout(), report)
+}
+
+func writeStatus(w io.Writer, report statusReport) error {
 	if len(report.Profiles) == 0 {
-		println(cmd, "No profiles yet. Create one with: switchyard add <name>")
-		return nil
+		_, err := fmt.Fprintln(w, "No profiles yet. Create one with: switchyard add <name>")
+		return err
 	}
-	tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	_, _ = fmt.Fprintln(tw, "\tNAME\t5H\t7D\tLAST USED\tCOOLDOWN UNTIL")
 	for _, p := range report.Profiles {
 		marker := " "
