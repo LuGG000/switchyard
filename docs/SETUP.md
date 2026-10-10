@@ -107,14 +107,16 @@ session is not interrupted. The mod is updated with `claude plugin update switch
 
 ## Removing switchyard
 
-1. Remove the mod: `claude plugin uninstall switchyard-mod@switchyard`.
-2. Delete the `switchyard` binary.
-3. Delete the profile folder (`%LocalAppData%\switchyard` on Windows, `~/.local/share/switchyard` on
+1. Remove every profile: `switchyard remove <name>` (a profile made with `--existing` loses only its link).
+2. Remove the mod: `claude plugin uninstall switchyard-mod@switchyard`.
+3. Remove the `switchyard shell-init` line from your shell startup file, if you added it.
+4. Delete the `switchyard` binary.
+5. Delete the profile folder (`%LocalAppData%\switchyard` on Windows, `~/.local/share/switchyard` on
    Linux and macOS) and the config folder from step 2.
 
-   **Careful:** a profile made with `--existing` is a link to your real `~/.claude`. Remove such a link alone
-   first (Windows: `rmdir <data folder>\profiles\<name>`; Linux/macOS: `rm <data folder>/profiles/<name>`, no
+   **Careful:** a profile made with `--existing` is a link to your real `~/.claude`. `switchyard remove` handles it
+   safely; if you delete by hand instead, remove such a link alone first (Windows: `rmdir <data folder>\profiles\<name>`; Linux/macOS: `rm <data folder>/profiles/<name>`, no
    trailing slash and no `-r`). Deleting the folder recursively while the link exists can delete your
-   sessions. The other profiles hold only that account's login and can be deleted normally.
+   sessions.
 
 switchyard never changes your own Claude settings; it adds hooks and the status line per run only.

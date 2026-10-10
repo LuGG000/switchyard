@@ -5,10 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/LuGG000/switchyard/internal/linker"
 )
 
 const fakeEnv = "SWITCHYARD_FAKE_CLAUDE"
@@ -230,5 +233,73 @@ func TestAdoptRefusesWhatCannotBeAdopted(t *testing.T) {
 	}
 	if list, _ := m.List(); len(list) != 2 {
 		t.Errorf("a refused adoption left a profile behind: %v", list)
+	}
+}
+
+func TestRemoveOfALinkedProfileLeavesTheSourceAlone(t *testing.T) {
+	m := newManager(t, true, SubscriptionAuth)
+	source := t.TempDir()
+	marker := filepath.Join(source, "marker.txt")
+	if err := os.WriteFile(marker, []byte("mine"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p, err := m.Adopt("main", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.Linked(p) {
+		t.Fatal("an adopted profile is not reported as linked")
+	}
+
+	if err := m.Remove("main"); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(marker); err != nil || string(data) != "mine" {
+		t.Fatalf("the source directory was touched: %q, %v", data, err)
+	}
+	if _, err := m.Get("main"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Get after Remove = %v, want ErrNotFound", err)
+	}
+}
+
+func TestRemoveDoesNotFollowSharedEntries(t *testing.T) {
+	m := newManager(t, true, SubscriptionAuth)
+	source := t.TempDir()
+	shared := filepath.Join(source, "projects", "session.jsonl")
+	if err := os.MkdirAll(filepath.Dir(shared), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(shared, []byte("conversation"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p, err := m.Create("zweit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Dir, "own.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := linker.Link(source, p.Dir, []string{"projects"}); err != nil {
+		t.Fatal(err)
+	}
+	if m.Linked(p) {
+		t.Fatal("a created profile is reported as linked")
+	}
+
+	if err := m.Remove("zweit"); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(shared); err != nil || string(data) != "conversation" {
+		t.Fatalf("the shared sessions were deleted: %q, %v", data, err)
+	}
+	if _, err := os.Lstat(p.Dir); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the profile directory is still there: %v", err)
+	}
+}
+
+func TestRemoveUnknownProfile(t *testing.T) {
+	m := newManager(t, true, SubscriptionAuth)
+	if err := m.Remove("nope"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Remove = %v, want ErrNotFound", err)
 	}
 }
