@@ -1,5 +1,9 @@
 # switchyard
 
+[![CI](https://github.com/LuGG000/switchyard/actions/workflows/ci.yml/badge.svg)](https://github.com/LuGG000/switchyard/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/LuGG000/switchyard)](https://github.com/LuGG000/switchyard/releases/latest)
+[![License](https://img.shields.io/github/license/LuGG000/switchyard)](LICENSE)
+
 Open-source account switcher with limit failover for Claude Code subscription
 logins (Pro/Max). Keep several of your own logins as profiles; when one hits its
 usage limit, switchyard continues the conversation in the next one.
@@ -200,11 +204,26 @@ and may change between releases.
 ## Scope
 
 Subscription logins only (`authMethod: claude.ai`). API-key, Console, Bedrock,
-Vertex and Foundry accounts are explicitly out of scope. Verified by hand
-with the real `claude`: Windows. Linux is built and tested in CI and the statusLine was
-checked in its TUI, but ending an interactive `claude` there is not verified yet ([#2](https://github.com/LuGG000/switchyard/issues/2)).
-macOS binaries are built and tested in CI only. WSL is not verified (it behaves like Linux inside).
-What is checked and how is in [docs/SPIKE.md](docs/SPIKE.md).
+Vertex and Foundry accounts are explicitly out of scope.
+
+### What is verified where
+
+"By hand" means tried with the real `claude`; "CI" means built and tested there, with `claude` simulated.
+No real usage limit has been observed on any platform ([#1](https://github.com/LuGG000/switchyard/issues/1)):
+every limit test uses a simulated limit.
+
+| | Windows | Linux | macOS | WSL |
+|---|---|---|---|---|
+| Profiles: add, login, list, switch, remove | by hand | CI | CI | not verified |
+| Your existing login (`add --existing`) | by hand | CI | CI; the Keychain may make the login check fail | not verified |
+| `run` and failover, headless | by hand, without a limit | CI | CI | not verified |
+| Failover, interactive (ending `claude`) | by hand, simulated limit | CI; ending `claude` not verified ([#2](https://github.com/LuGG000/switchyard/issues/2)) | CI | not verified ([#3](https://github.com/LuGG000/switchyard/issues/3)) |
+| statusLine and usage tracking | by hand | by hand (TUI) | CI | not verified |
+| Mod (`/switchyard` pane and buttons) | by hand | not verified | not verified | not verified |
+| `update --install` | by hand | CI; replacing the binary not verified | CI; replacing the binary not verified | not verified |
+| `shell-init` | CI | CI; zsh and fish not tried by hand | CI | not verified |
+
+WSL behaves like Linux inside. What was checked and how is in [docs/SPIKE.md](docs/SPIKE.md).
 
 ## Non-goals
 
