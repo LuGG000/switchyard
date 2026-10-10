@@ -9,7 +9,7 @@ import (
 )
 
 func newSwitchCmd() *cobra.Command {
-	var resume, fresh, noLaunch bool
+	var resume, fresh, noLaunch, dryRun bool
 	cmd := &cobra.Command{
 		Use:   "switch <name> [flags] [-- claude args...]",
 		Short: "Switch to another profile and start claude with it",
@@ -23,6 +23,9 @@ func newSwitchCmd() *cobra.Command {
 			cfg, err := loadConfig()
 			if err != nil {
 				return err
+			}
+			if dryRun {
+				return dryRunSwitch(cmd, cfg.CarryContext, args, resume, fresh, noLaunch)
 			}
 			m, err := newProfileManager()
 			if err != nil {
@@ -54,6 +57,7 @@ func newSwitchCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&resume, "resume", false, "continue the current conversation in the new profile")
 	cmd.Flags().BoolVar(&fresh, "fresh", false, "start a new conversation")
 	cmd.Flags().BoolVar(&noLaunch, "no-launch", false, "only change the active profile")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show what the switch would do without changing anything or starting claude")
 	cmd.MarkFlagsMutuallyExclusive("resume", "fresh", "no-launch")
 	return cmd
 }

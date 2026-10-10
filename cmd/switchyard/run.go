@@ -32,7 +32,7 @@ func newStateStore() (*state.Store, error) {
 
 func newRunCmd() *cobra.Command {
 	var profileName string
-	var waitForReset bool
+	var waitForReset, dryRun bool
 	cmd := &cobra.Command{
 		Use:   "run [flags] [-- claude args...]",
 		Short: "Run claude with the active profile",
@@ -43,6 +43,9 @@ func newRunCmd() *cobra.Command {
 			"If every profile is at its limit, a headless run stops with exit code 75; with --wait it waits for\n" +
 			"the first reset and goes on (Ctrl+C stops). An interactive run waits for it by itself.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if dryRun {
+				return dryRunPlan(cmd, profileName, args)
+			}
 			m, err := newProfileManager()
 			if err != nil {
 				return err
@@ -62,6 +65,7 @@ func newRunCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&profileName, "profile", "p", "", "profile to use instead of the active one")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show the profile, the failover settings and the claude command line without starting claude")
 	cmd.Flags().BoolVar(&waitForReset, "wait", false, "headless: when every profile is at its limit, wait for the first reset and continue")
 	return cmd
 }
