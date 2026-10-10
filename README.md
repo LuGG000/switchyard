@@ -186,6 +186,12 @@ buttons to continue in another account, buttons that answer the "limit reached" 
 claude keeps running (in ask mode), and the failover mode and colors as
 settings. switchyard works without it.
 
+![The /switchyard pane: failover settings and one card per account with usage bars](docs/images/mod-overview.png)
+
+At a limit the pane opens by itself and asks what to do while claude keeps running:
+
+![The pane at a limit: a red card with buttons to continue in the other account, start a new conversation or stay](docs/images/mod-limit.png)
+
 ```
 switchyard mod install
 ```
