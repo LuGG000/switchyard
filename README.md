@@ -243,7 +243,7 @@ every limit test uses a simulated limit.
 | statusLine and usage tracking | by hand | by hand (TUI) | CI | not verified |
 | Mod (`/switchyard` pane and buttons) | by hand | not verified | not verified | not verified |
 | `update --install` | by hand | CI; replacing the binary not verified | CI; replacing the binary not verified | not verified |
-| `shell-init` | CI | CI; zsh and fish not tried by hand | CI | not verified |
+| `shell-init` | by hand (bash, PowerShell) | CI; bash and PowerShell logic as on Windows, zsh and fish not tried by hand | CI | not verified |
 
 WSL behaves like Linux inside. What was checked and how is in [docs/SPIKE.md](docs/SPIKE.md).
 
