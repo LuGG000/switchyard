@@ -318,3 +318,12 @@ asks through buttons and keeps claude running meanwhile:
   would be removed, never their values) and the exact claude command line with the injected `--settings`.
 - It writes nothing: no `markUsed`, no relinking, no `state.json`. It needs no `claude` in the PATH.
 - `switch --dry-run --no-launch` only says that the profile would become the active one.
+
+## History of switches
+
+- `internal/history` appends one JSON line per switch to `history.jsonl` in the data dir: time, from, to, reason
+  (`rate_limit`, `threshold`, `manual`), how (`auto`, `asked`, `button`, `handoff`) and whether the conversation went
+  along. Names and times only. The file is cut back to its newest 200 entries when it passes 128 KiB.
+- Both runners have a `History` hook; the commands set it. A history that cannot be written never stops a switch.
+  Switches only: a limit that leads to no switch (waiting, quitting, a paused automatic switch) is not recorded.
+- `switchyard history [-n N] [--json]` prints them. The state of the current moment stays in `state.json`.
