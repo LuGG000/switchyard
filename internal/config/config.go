@@ -53,6 +53,8 @@ type Config struct {
 	ContinuePrompt string `toml:"continue_prompt"`
 	// ProactiveThreshold switches at this five-hour usage percentage. Zero disables it.
 	ProactiveThreshold int `toml:"proactive_threshold"`
+	// ProactiveThresholdWeekly is the same for the seven-day window. Zero disables it.
+	ProactiveThresholdWeekly int `toml:"proactive_threshold_weekly"`
 	// MinSwitchInterval is the minutes that must pass after an automatic switch before the next
 	// one; until then the question is asked instead. Zero disables it.
 	MinSwitchInterval int `toml:"min_switch_interval_minutes"`
@@ -105,6 +107,9 @@ func (c Config) Validate() error {
 	}
 	if c.ProactiveThreshold < 0 || c.ProactiveThreshold > 100 {
 		return fmt.Errorf("proactive_threshold: %d out of range 0-100", c.ProactiveThreshold)
+	}
+	if c.ProactiveThresholdWeekly < 0 || c.ProactiveThresholdWeekly > 100 {
+		return fmt.Errorf("proactive_threshold_weekly: %d out of range 0-100", c.ProactiveThresholdWeekly)
 	}
 	if c.MinSwitchInterval < 0 {
 		return fmt.Errorf("min_switch_interval_minutes: %d is negative", c.MinSwitchInterval)
@@ -213,17 +218,18 @@ func configDir() (string, error) {
 
 // Setting names Set can change.
 const (
-	KeyMode               = "mode"
-	KeyCarryContext       = "carry_context"
-	KeyStrategy           = "strategy"
-	KeyProactiveThreshold = "proactive_threshold"
-	KeyMinSwitchInterval  = "min_switch_interval_minutes"
-	KeyMaxAutoSwitches    = "max_auto_switches_per_day"
-	KeyUpdateCheck        = "update_check"
+	KeyMode                     = "mode"
+	KeyCarryContext             = "carry_context"
+	KeyStrategy                 = "strategy"
+	KeyProactiveThreshold       = "proactive_threshold"
+	KeyProactiveThresholdWeekly = "proactive_threshold_weekly"
+	KeyMinSwitchInterval        = "min_switch_interval_minutes"
+	KeyMaxAutoSwitches          = "max_auto_switches_per_day"
+	KeyUpdateCheck              = "update_check"
 )
 
 // SettableKeys lists the settings Set can change, in display order.
-var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold, KeyMinSwitchInterval, KeyMaxAutoSwitches, KeyUpdateCheck}, ColorKeys...)
+var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold, KeyProactiveThresholdWeekly, KeyMinSwitchInterval, KeyMaxAutoSwitches, KeyUpdateCheck}, ColorKeys...)
 
 // Set changes one setting in the config file at path and leaves the rest of the
 // file, comments included, as it is. The value is checked before anything is
@@ -281,7 +287,7 @@ func apply(cfg *Config, key, value string) (string, error) {
 			cfg.CarryContext = b
 		}
 		return strconv.FormatBool(b), nil
-	case KeyProactiveThreshold, KeyMinSwitchInterval, KeyMaxAutoSwitches:
+	case KeyProactiveThreshold, KeyProactiveThresholdWeekly, KeyMinSwitchInterval, KeyMaxAutoSwitches:
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return "", fmt.Errorf("%s: %q is not a whole number", key, value)
@@ -289,6 +295,8 @@ func apply(cfg *Config, key, value string) (string, error) {
 		switch key {
 		case KeyProactiveThreshold:
 			cfg.ProactiveThreshold = n
+		case KeyProactiveThresholdWeekly:
+			cfg.ProactiveThresholdWeekly = n
 		case KeyMinSwitchInterval:
 			cfg.MinSwitchInterval = n
 		default:

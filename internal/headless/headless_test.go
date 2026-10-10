@@ -333,3 +333,45 @@ func TestAnInterruptedWaitEndsTheRun(t *testing.T) {
 		t.Fatalf("Run = %v, want the error of the wait", err)
 	}
 }
+
+func TestRunStartsInAProfileUnderTheThreshold(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.Thresholds = selector.Thresholds{FiveHour: 50}
+	err := f.store.Update(func(st *state.State) error {
+		st.Profiles["a-limited"] = state.Profile{FiveHour: &state.Usage{UsedPercent: 90, ResetsAt: time.Now().Add(time.Hour)}}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if code, err := f.runner.Run(context.Background(), f.runner.Profiles[0], []string{"-p", "hello"}); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if len(f.attempts) != 1 || f.attempts[0].profile != "b" {
+		t.Errorf("attempts = %v, want a single attempt in b", f.attempts)
+	}
+	if !strings.Contains(f.notice.String(), "a-limited is over its usage threshold, starting with b") {
+		t.Errorf("notice = %q", f.notice.String())
+	}
+}
+
+func TestRunKeepsTheStartProfileWhenNoneIsUnderTheThreshold(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.Thresholds = selector.Thresholds{FiveHour: 50}
+	err := f.store.Update(func(st *state.State) error {
+		for _, name := range []string{"a-limited", "b"} {
+			st.Profiles[name] = state.Profile{FiveHour: &state.Usage{UsedPercent: 90, ResetsAt: time.Now().Add(time.Hour)}}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.runner.Run(context.Background(), f.runner.Profiles[0], []string{"-p", "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	if f.attempts[0].profile != "a-limited" {
+		t.Errorf("first attempt in %s, want the start profile", f.attempts[0].profile)
+	}
+}

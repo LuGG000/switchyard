@@ -45,6 +45,8 @@ type Runner struct {
 	CarryContext bool
 	// Limits bound the automatic switches; over them, automatic mode asks like ask mode.
 	Limits breaker.Limits
+	// Thresholds keep a profile that is over them from being chosen while another is below.
+	Thresholds selector.Thresholds
 	// ContinuePrompt is sent as the first message of a resumed conversation. Empty sends nothing.
 	ContinuePrompt string
 	// Prepare records p as in use and returns the final claude arguments for it.
@@ -252,11 +254,11 @@ func (r *Runner) modPresent(since time.Time) bool {
 	return !seen.Before(since) && r.Now().Sub(seen) <= stale
 }
 
-// hasAlternative reports whether a profile other than p is out of cooldown.
+// hasAlternative reports whether a profile other than p is out of cooldown and under the usage thresholds.
 func (r *Runner) hasAlternative(st state.State, p profiles.Profile) bool {
 	now := r.Now()
 	for _, other := range r.Profiles {
-		if other.Name != p.Name && !st.Profiles[other.Name].CooldownUntil.After(now) {
+		if other.Name != p.Name && !st.Profiles[other.Name].CooldownUntil.After(now) && !r.Thresholds.Over(st.Profiles[other.Name], now) {
 			return true
 		}
 	}
@@ -267,7 +269,7 @@ func (r *Runner) hasAlternative(st state.State, p profiles.Profile) bool {
 // conversation over. A nil profile means the user quit.
 func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state.SwitchRequest) (*profiles.Profile, bool, error) {
 	for {
-		next, err := selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, r.Now())
+		next, err := selector.NextProfile(r.Store, r.Profiles, r.Strategy, r.Thresholds, current.Name, r.Now())
 		var locked *selector.AllLockedError
 		if err != nil && !errors.As(err, &locked) {
 			return nil, false, err
@@ -456,4 +458,5 @@ func (r *Runner) reload() {
 	}
 	r.Mode, r.Strategy, r.CarryContext, r.ContinuePrompt = cfg.Mode, cfg.Strategy, cfg.CarryContext, cfg.ContinuePrompt
 	r.Limits = breaker.FromConfig(cfg)
+	r.Thresholds = selector.ThresholdsFromConfig(cfg)
 }

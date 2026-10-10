@@ -151,11 +151,20 @@ one setting and a running session picks it up at its next limit.
 | `mode` | `ask` (default), `auto` | at a limit, ask in the terminal or switch at once |
 | `carry_context` | `true` (default), `false` | continue the conversation in the next profile |
 | `strategy` | `sequential` (default), `most-headroom`, `round-robin` | how the next profile is chosen |
-| `proactive_threshold` | `0` (off) to `100` | five-hour usage in percent that triggers a switch |
+| `proactive_threshold` | `0` (off) to `100` | five-hour usage in percent at which to switch: 50 uses half of a window, 90 keeps 10% left |
+| `proactive_threshold_weekly` | `0` (off) to `100` | the same for the seven-day window |
 | `min_switch_interval_minutes` | `10` (default), `0` = off | minutes that must pass after an automatic switch before the next; until then it asks instead |
 | `max_auto_switches_per_day` | `6` (default), `0` = off | most automatic switches in 24 hours; over that it asks instead |
 | `update_check` | `true` (default), `false` | mention a newer release after `status`, `list` and `doctor` |
 | `color_*` | color or empty | colors of the mod pane, see [mod/README.md](mod/README.md) |
+
+### Usage thresholds
+
+The thresholds make switchyard leave an account before its limit. At the threshold a running session moves on
+(only if another profile is below its thresholds), a headless run starts in a profile below them, and a
+profile at or over a threshold is not chosen as the next one while another is below. If every profile is over,
+the usual choice applies, since moving on beats stopping. A switch caused by a threshold counts towards the
+limits below.
 
 ### Cautious switching
 

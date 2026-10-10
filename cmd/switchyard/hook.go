@@ -69,7 +69,7 @@ func newHookHandler(profileName string) (*hooks.Handler, error) {
 	h := &hooks.Handler{Store: store, Profile: p.Name, ProfileDir: p.Dir, Now: time.Now}
 	// A broken config must not break claude's status line; it only drops the threshold and the mode.
 	if cfg, err := loadConfig(); err == nil {
-		h.Threshold, h.Mode = cfg.ProactiveThreshold, cfg.Mode
+		h.Threshold, h.ThresholdWeekly, h.Mode = cfg.ProactiveThreshold, cfg.ProactiveThresholdWeekly, cfg.Mode
 		if release, ok := newerRelease(); ok {
 			h.Update = release.Version
 		}

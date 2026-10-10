@@ -59,7 +59,7 @@ func TestNext(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := Next(tc.strategy, tc.current, tc.candidates, now)
+			got, err := Next(tc.strategy, tc.current, tc.candidates, Thresholds{}, now)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -72,7 +72,7 @@ func TestNext(t *testing.T) {
 
 func TestNextAllLockedReportsEarliestReset(t *testing.T) {
 	_, err := Next(config.StrategySequential, "a",
-		[]Candidate{cooling("a", 3*time.Hour), cooling("b", time.Hour)}, now)
+		[]Candidate{cooling("a", 3*time.Hour), cooling("b", time.Hour)}, Thresholds{}, now)
 	var locked *AllLockedError
 	if !errors.As(err, &locked) {
 		t.Fatalf("got %v, want AllLockedError", err)
@@ -83,17 +83,17 @@ func TestNextAllLockedReportsEarliestReset(t *testing.T) {
 }
 
 func TestNextErrors(t *testing.T) {
-	if _, err := Next(config.StrategySequential, "", nil, now); !errors.Is(err, ErrNoCandidates) {
+	if _, err := Next(config.StrategySequential, "", nil, Thresholds{}, now); !errors.Is(err, ErrNoCandidates) {
 		t.Errorf("got %v, want ErrNoCandidates", err)
 	}
-	if _, err := Next("random", "", []Candidate{free("a")}, now); err == nil {
+	if _, err := Next("random", "", []Candidate{free("a")}, Thresholds{}, now); err == nil {
 		t.Error("expected an error for an unknown strategy")
 	}
 }
 
 func TestNextDoesNotReorderInput(t *testing.T) {
 	in := []Candidate{free("b"), free("a")}
-	if _, err := Next(config.StrategySequential, "", in, now); err != nil {
+	if _, err := Next(config.StrategySequential, "", in, Thresholds{}, now); err != nil {
 		t.Fatal(err)
 	}
 	if in[0].Name != "b" {
@@ -110,5 +110,43 @@ func TestWaitUntil(t *testing.T) {
 	cancel()
 	if err := WaitUntil(ctx, now().Add(time.Hour), now); !errors.Is(err, context.Canceled) {
 		t.Errorf("a canceled wait = %v, want context.Canceled", err)
+	}
+}
+
+func fiveHour(name string, percent float64, resetsIn time.Duration) Candidate {
+	return Candidate{Name: name, State: state.Profile{FiveHour: &state.Usage{UsedPercent: percent, ResetsAt: now.Add(resetsIn)}}}
+}
+
+func TestThresholdsKeepAProfileOverThemFromBeingChosen(t *testing.T) {
+	tests := []struct {
+		name       string
+		strategy   string
+		current    string
+		thresholds Thresholds
+		candidates []Candidate
+		want       string
+	}{
+		{"a profile over the five-hour threshold is skipped", config.StrategySequential, "a", Thresholds{FiveHour: 80},
+			[]Candidate{fiveHour("a", 85, time.Hour), fiveHour("b", 95, time.Hour), fiveHour("c", 10, time.Hour)}, "c"},
+		{"a profile over the weekly threshold is skipped", config.StrategyRoundRobin, "a", Thresholds{SevenDay: 50},
+			[]Candidate{free("a"), weekly("b", 60, time.Hour), free("c")}, "c"},
+		{"exactly at the threshold counts as over", config.StrategySequential, "a", Thresholds{FiveHour: 50},
+			[]Candidate{free("a"), fiveHour("b", 50, time.Hour), free("c")}, "a"},
+		{"a window that has reset counts as unused", config.StrategySequential, "x", Thresholds{FiveHour: 50},
+			[]Candidate{fiveHour("a", 90, -time.Minute), fiveHour("b", 60, time.Hour)}, "a"},
+		{"with every profile over, they all stay candidates", config.StrategySequential, "a", Thresholds{FiveHour: 50},
+			[]Candidate{fiveHour("a", 90, time.Hour), fiveHour("b", 70, time.Hour)}, "a"},
+		{"thresholds off change nothing", config.StrategySequential, "x", Thresholds{},
+			[]Candidate{fiveHour("a", 99, time.Hour), free("b")}, "a"},
+		{"the current profile is left when it is over and another is not", config.StrategySequential, "a", Thresholds{FiveHour: 50},
+			[]Candidate{fiveHour("a", 60, time.Hour), free("b")}, "b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Next(tc.strategy, tc.current, tc.candidates, tc.thresholds, now)
+			if err != nil || got != tc.want {
+				t.Errorf("Next = %q, %v, want %q", got, err, tc.want)
+			}
+		})
 	}
 }

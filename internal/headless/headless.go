@@ -33,6 +33,8 @@ type Runner struct {
 	CarryContext bool
 	// Limits bound the automatic switches; a run that would go over them stops.
 	Limits breaker.Limits
+	// Thresholds keep a profile that is over them from being chosen while another is below.
+	Thresholds selector.Thresholds
 	// Prepare records p as in use and returns the final claude arguments for it.
 	Prepare func(p profiles.Profile, args []string) ([]string, error)
 	// Now returns the current time.
@@ -58,7 +60,10 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 		return 0, selector.ErrNoCandidates
 	}
 	stdin := newReplayableStdin(r.Launcher.Stdin)
-	current := start
+	current, err := r.startProfile(start)
+	if err != nil {
+		return 0, err
+	}
 	attemptArgs := args
 	var sessionID string
 	// Every profile gets one attempt; a wait for a reset starts the count again.
@@ -143,7 +148,7 @@ func (r *Runner) markLimitedAndChoose(ctx context.Context, current profiles.Prof
 		return profiles.Profile{}, false, err
 	}
 	for {
-		next, err := selector.NextProfile(r.Store, r.Profiles, r.Strategy, current.Name, r.Now())
+		next, err := selector.NextProfile(r.Store, r.Profiles, r.Strategy, r.Thresholds, current.Name, r.Now())
 		var locked *selector.AllLockedError
 		if !errors.As(err, &locked) || !r.WaitForReset {
 			return next, waited, err
@@ -189,4 +194,27 @@ func (s *replayableStdin) reader() io.Reader {
 	}
 	replay := bytes.NewReader(bytes.Clone(s.recorded.Bytes()))
 	return io.MultiReader(replay, io.TeeReader(s.in, s.recorded))
+}
+
+// startProfile moves a run off a start profile that is over a usage threshold when a
+// profile below the thresholds is available and the limits on automatic switches allow
+// it. Anything else keeps the start profile.
+func (r *Runner) startProfile(start profiles.Profile) (profiles.Profile, error) {
+	st, err := r.Store.Read()
+	now := r.Now()
+	if err != nil || !r.Thresholds.Over(st.Profiles[start.Name], now) {
+		return start, nil
+	}
+	next, err := selector.NextProfile(r.Store, r.Profiles, r.Strategy, r.Thresholds, start.Name, now)
+	if err != nil || next.Name == start.Name || r.Thresholds.Over(st.Profiles[next.Name], now) {
+		return start, nil
+	}
+	if breaker.Allowed(r.Store, r.Limits, now) != nil {
+		return start, nil
+	}
+	if err := breaker.Record(r.Store, now); err != nil {
+		return start, err
+	}
+	_, _ = fmt.Fprintf(r.Notice, "switchyard: profile %s is over its usage threshold, starting with %s\n", start.Name, next.Name)
+	return next, nil
 }

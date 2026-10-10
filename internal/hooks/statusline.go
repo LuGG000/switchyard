@@ -29,6 +29,8 @@ type Handler struct {
 	// Threshold is the five-hour usage percentage that asks the launcher to
 	// switch profiles; zero disables it.
 	Threshold int
+	// ThresholdWeekly is the same for the seven-day window.
+	ThresholdWeekly int
 	// Update is the version of a newer release, shown in the summary; empty for none.
 	Update string
 	// Now returns the current time.
@@ -70,7 +72,7 @@ func (h *Handler) Statusline(in io.Reader, out io.Writer) error {
 			p := st.Profiles[h.Profile]
 			p.FiveHour, p.SevenDay = five, seven
 			st.Profiles[h.Profile] = p
-			if h.Threshold > 0 && five != nil && five.UsedPercent >= float64(h.Threshold) {
+			if reached(five, h.Threshold) || reached(seven, h.ThresholdWeekly) {
 				st.SwitchRequest = &state.SwitchRequest{
 					Profile:     h.Profile,
 					Reason:      state.ReasonThreshold,
@@ -106,6 +108,11 @@ func (h *Handler) lastKnownUsage() (five, seven *state.Usage) {
 	}
 	p := st.Profiles[h.Profile]
 	return current(p.FiveHour), current(p.SevenDay)
+}
+
+// reached reports whether u has used at least limit percent; a zero limit is off.
+func reached(u *state.Usage, limit int) bool {
+	return limit > 0 && u != nil && u.UsedPercent >= float64(limit)
 }
 
 func usage(w *window, now time.Time) *state.Usage {

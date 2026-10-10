@@ -306,3 +306,21 @@ func TestSwitchLimitsDefaultToModerateAndCanBeChanged(t *testing.T) {
 		t.Errorf("after Set = %d minutes, %d per day", got.MinSwitchInterval, got.MaxAutoSwitches)
 	}
 }
+
+func TestWeeklyThresholdIsSetAndRangeChecked(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := Set(path, KeyProactiveThresholdWeekly, "60"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(path); got.ProactiveThresholdWeekly != 60 {
+		t.Errorf("weekly threshold = %d", got.ProactiveThresholdWeekly)
+	}
+	for _, value := range []string{"101", "x"} {
+		if err := Set(path, KeyProactiveThresholdWeekly, value); err == nil {
+			t.Errorf("Set %q did not fail", value)
+		}
+	}
+	if _, err := Load(writeConfig(t, "proactive_threshold_weekly = -1")); err == nil {
+		t.Error("a negative weekly threshold was accepted")
+	}
+}

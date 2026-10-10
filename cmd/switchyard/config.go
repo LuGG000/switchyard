@@ -20,6 +20,7 @@ type configReport struct {
 	CarryContext       bool          `json:"carry_context"`
 	Strategy           string        `json:"strategy"`
 	ProactiveThreshold int           `json:"proactive_threshold"`
+	ProactiveWeekly    int           `json:"proactive_threshold_weekly"`
 	MinSwitchInterval  int           `json:"min_switch_interval_minutes"`
 	MaxAutoSwitches    int           `json:"max_auto_switches_per_day"`
 	UpdateCheck        bool          `json:"update_check"`
@@ -36,6 +37,8 @@ func newConfigCmd() *cobra.Command {
 			"  carry_context        continue the conversation in the next profile\n" +
 			"  strategy             sequential, most-headroom or round-robin\n" +
 			"  proactive_threshold  five-hour usage in percent that triggers a switch, 0 = off\n" +
+			"                       (50 uses half of a window, 90 keeps 10% left)\n" +
+			"  proactive_threshold_weekly  the same for the seven-day window, 0 = off\n" +
 			"  min_switch_interval_minutes  minutes between two automatic switches, 0 = off\n" +
 			"  max_auto_switches_per_day    most automatic switches in 24 hours, 0 = off\n" +
 			"  update_check         mention a newer release once a day (status, list, doctor)\n\n" +
@@ -53,6 +56,7 @@ func newConfigCmd() *cobra.Command {
 				CarryContext:       cfg.CarryContext,
 				Strategy:           cfg.Strategy,
 				ProactiveThreshold: cfg.ProactiveThreshold,
+				ProactiveWeekly:    cfg.ProactiveThresholdWeekly,
 				MinSwitchInterval:  cfg.MinSwitchInterval,
 				MaxAutoSwitches:    cfg.MaxAutoSwitches,
 				UpdateCheck:        cfg.UpdateCheck,
@@ -70,6 +74,7 @@ func newConfigCmd() *cobra.Command {
 			printf(cmd, "%-28s %t\n", config.KeyCarryContext, report.CarryContext)
 			printf(cmd, "%-28s %s\n", config.KeyStrategy, report.Strategy)
 			printf(cmd, "%-28s %s\n", config.KeyProactiveThreshold, strconv.Itoa(report.ProactiveThreshold))
+			printf(cmd, "%-28s %s\n", config.KeyProactiveThresholdWeekly, strconv.Itoa(report.ProactiveWeekly))
 			printf(cmd, "%-28s %s\n", config.KeyMinSwitchInterval, strconv.Itoa(report.MinSwitchInterval))
 			printf(cmd, "%-28s %s\n", config.KeyMaxAutoSwitches, strconv.Itoa(report.MaxAutoSwitches))
 			colors := report.Colors

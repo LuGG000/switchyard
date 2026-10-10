@@ -10,6 +10,7 @@ import (
 	"github.com/LuGG000/switchyard/internal/interactive"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
+	"github.com/LuGG000/switchyard/internal/selector"
 	"github.com/LuGG000/switchyard/internal/state"
 )
 
@@ -53,6 +54,7 @@ func runInteractive(cmd *cobra.Command, m *profiles.Manager, store *state.Store,
 		ModStale:       modStale,
 		CarryContext:   cfg.CarryContext,
 		Limits:         breaker.FromConfig(cfg),
+		Thresholds:     selector.ThresholdsFromConfig(cfg),
 		ContinuePrompt: cfg.ContinuePrompt,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)
