@@ -193,6 +193,7 @@ and may change between releases.
 
 - [docs/SETUP.md](docs/SETUP.md): the full setup guide, from install to removal
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): packages and the decisions taken
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): fixes for the usual problems
 - [docs/SPIKE.md](docs/SPIKE.md): what was verified against `claude`
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test and contribute
 - [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)

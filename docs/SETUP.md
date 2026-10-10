@@ -120,3 +120,5 @@ session is not interrupted. The mod is updated with `claude plugin update switch
    sessions.
 
 switchyard never changes your own Claude settings; it adds hooks and the status line per run only.
+
+If something does not work, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
