@@ -124,6 +124,29 @@ The values and observations from 3a and 3b (no secrets). Add them to `docs/SPIKE
 section), correct the detector or the hook where the real behavior differs, and update the README
 status. Afterwards remove the test conversations and clear any leftover cooldown (see below).
 
+## 4. The Claude Code extension for VS Code (issue #29)
+
+switchyard has no launcher inside the extension, so there is no failover there; the question is whether
+the extension can at least use a profile's login. What is known without running it: the extension has the
+settings `claudeCode.environmentVariables` (variables set when it launches claude) and
+`claudeCode.claudeProcessWrapper` (an executable that launches the claude process). Nothing below is
+verified yet.
+
+1. In the workspace settings (`.vscode/settings.json`) of an empty test folder, set
+   `"claudeCode.environmentVariables": [{ "name": "CLAUDE_CONFIG_DIR", "value": "<data dir>/profiles/second" }]`
+   (use a profile that is logged in with another account than the one the extension uses by default, so a
+   difference is visible).
+2. Reload the window, open the Claude Code panel and send one short prompt ("say ok", haiku).
+3. Check which account answered: `switchyard status` shows the usage of the profile (the status line only
+   updates for sessions started through switchyard, so compare the usage on claude.ai or `/status` in the panel),
+   and a new `.jsonl` appears under `<data dir>/profiles/second/projects/`, not under `~/.claude/projects/`.
+4. Remove the setting again and note whether the panel kept the profile's login or asked to log in.
+
+Write down: whether the variable was honored, where sessions were stored, and whether the panel shows
+which account is in use. If it works, the README can say that a profile can be used in VS Code by that
+setting, and that failover does not apply there. Whether `claudeProcessWrapper` could point at
+`switchyard run` (the extension talks to claude over stream-json) is a second experiment.
+
 ## Cleaning up
 
 Remove the test directory and its entry under `~/.claude/projects/` (name the paths explicitly)
