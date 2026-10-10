@@ -1,5 +1,24 @@
 # Phase 0 spike results
 
+## Summary
+
+The sections below are a log, oldest first, and some early "open" items were closed in later updates. This
+table is the current state. "Windows" means tried by hand with the real `claude`.
+
+| Question | Result | Where verified |
+|---|---|---|
+| (a) `--settings` hooks are added to the user hooks | verified | Windows |
+| (a) `--settings` statusLine replaces the user's; `hook statusline` chains the user's command | verified | Linux TUI |
+| (b) headless limit signal (`status` and result at a real limit) | **open**, needs a real limit ([#1](https://github.com/LuGG000/switchyard/issues/1)) | nowhere; a normal run shows no false positive |
+| (c) ending an interactive `claude` | Windows verified with a simulated limit; Unix **open** ([#2](https://github.com/LuGG000/switchyard/issues/2)); the real StopFailure input is unchecked | Windows |
+| (d) `--resume` between profiles through the shared `projects/` | verified | Windows |
+| (e) `claude auth status` per config dir, credential variables scrubbed | verified | Windows |
+| (f) usage data: `rate_limits` in the statusLine JSON and `rate_limit_event` in headless output | verified | Linux TUI, Windows |
+| (g) WSL against native Windows config dirs | **open**, WSL not installed ([#3](https://github.com/LuGG000/switchyard/issues/3)) | nowhere |
+| `settings.json` link replaced by claude on Windows | found and handled by `repair` | Windows |
+| `update --install` | verified | Windows; Linux and macOS open |
+| Mod buttons at a limit | verified with a simulated limit | Windows |
+
 Tested with `claude` 2.1.295 on Windows 11, using throw-away `CLAUDE_CONFIG_DIR`
 directories that are not logged in. No credentials were read and no prompt was
 sent to a real account. Never record emails, org IDs or org names here.
