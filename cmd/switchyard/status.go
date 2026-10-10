@@ -42,7 +42,7 @@ type usageInfo struct {
 }
 
 func newStatusCmd() *cobra.Command {
-	var asJSON bool
+	var asJSON, short bool
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the active profile and the state of all profiles",
@@ -60,6 +60,12 @@ func newStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if short {
+				if line := shortStatus(report, time.Now()); line != "" {
+					println(cmd, line)
+				}
+				return nil
+			}
 			if asJSON {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetIndent("", "  ")
@@ -69,6 +75,8 @@ func newStatusCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print machine-readable JSON")
+	cmd.Flags().BoolVar(&short, "short", false, "print one line for a shell prompt or tmux; nothing without an active profile")
+	cmd.MarkFlagsMutuallyExclusive("json", "short")
 	return cmd
 }
 
@@ -154,4 +162,26 @@ func pendingUpdate() *updateInfo {
 		return nil
 	}
 	return &updateInfo{Version: release.Version, URL: release.URL}
+}
+
+// shortStatus is the one line of `status --short`: the active profile with its usage, or the time its
+// limit ends. It is empty when no profile is active, so a prompt segment can stay blank.
+func shortStatus(report statusReport, now time.Time) string {
+	for _, p := range report.Profiles {
+		if !p.Active {
+			continue
+		}
+		if p.CooldownUntil != nil && p.CooldownUntil.After(now) {
+			return fmt.Sprintf("%s limit until %s", p.Name, p.CooldownUntil.Local().Format("15:04"))
+		}
+		line := p.Name
+		if p.FiveHour != nil {
+			line += " 5h " + formatUsage(p.FiveHour)
+		}
+		if p.SevenDay != nil {
+			line += " 7d " + formatUsage(p.SevenDay)
+		}
+		return line
+	}
+	return ""
 }

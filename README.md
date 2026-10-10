@@ -59,6 +59,7 @@ switchyard init                       # create the default config.toml
 switchyard add work1                  # create a profile and log it in
 switchyard list                       # profiles and their login state
 switchyard status [--json]            # active profile, last use, cooldowns
+switchyard status --short           # one line for a shell prompt or tmux: main 5h 33% 7d 19%
 switchyard run -- --model haiku       # run claude with the active profile
 switchyard run -- -p "prompt"         # headless run that fails over at a limit
 switchyard switch work2 --resume      # switch and continue the current conversation
@@ -75,11 +76,35 @@ switchyard update                     # check for a newer release
 switchyard update --install           # download and install it
 switchyard repair                     # re-create the shared links
 switchyard doctor                     # check logins, settings and links
+switchyard shell-init bash            # a claude function that always starts through switchyard
 ```
 
 Without `--resume` or `--fresh`, `carry_context` decides. Carrying the context
 makes the new account process it again with a cold prompt cache, and it counts
 against that account's limit.
+
+### Start it every time
+
+Typing `switchyard run --` before every start is easy to forget. `switchyard shell-init <shell>` prints a
+function named `claude` so that a plain `claude` (no arguments, or options such as `--model haiku`
+first) starts through switchyard. Subcommands such as `claude mcp` or `claude auth` go to the real
+claude. Add one line to your shell startup file:
+
+```
+eval "$(switchyard shell-init bash)"                                      # bash, zsh
+switchyard shell-init fish | source                                       # fish
+switchyard shell-init powershell | Out-String | Invoke-Expression         # PowerShell $PROFILE
+```
+
+A prompt on its own (`claude "fix the bug"`) looks like a subcommand and goes to the real claude
+without failover; use `switchyard run -- "fix the bug"` for that. Tested in bash and PowerShell;
+zsh and fish use the same logic but have not been run.
+
+### Exit codes
+
+For scripts: `run` returns claude's own exit code. `75` means every profile is at its limit (the
+message says when the first is available again), so a script can wait and retry. Other
+switchyard errors, and `doctor` when it finds a problem, return `1`.
 
 ## Configuration
 
@@ -148,6 +173,13 @@ and may change between releases.
 Subscription logins only (`authMethod: claude.ai`). API-key, Console, Bedrock,
 Vertex and Foundry accounts are explicitly out of scope. Supported: Linux and
 Windows; macOS binaries are built but not tested yet, and WSL is not verified.
+
+## Non-goals
+
+switchyard keeps your own logins in order and continues a conversation when one is used up. It does not
+and will not: run accounts in parallel or spread work over several of them to scale up, copy, export or
+import credentials or tokens. Wording about getting around limits does not belong
+in its name, docs or flags.
 
 ## Terms of service and risk
 

@@ -107,3 +107,29 @@ func TestPendingUpdateComesFromTheCache(t *testing.T) {
 		t.Fatalf("opt-out must hide the update, got %+v", got)
 	}
 }
+
+func TestShortStatus(t *testing.T) {
+	now := time.Date(2026, 10, 10, 8, 0, 0, 0, time.UTC)
+	later := now.Add(time.Hour)
+	earlier := now.Add(-time.Hour)
+	usage := func(p float64) *usageInfo { return &usageInfo{UsedPercent: p} }
+	tests := []struct {
+		name     string
+		profiles []profileStatus
+		want     string
+	}{
+		{"no profile", nil, ""},
+		{"none active", []profileStatus{{Name: "a"}}, ""},
+		{"no data yet", []profileStatus{{Name: "a", Active: true}}, "a"},
+		{"usage", []profileStatus{{Name: "a", Active: true, FiveHour: usage(33), SevenDay: usage(19.4)}}, "a 5h 33% 7d 19%"},
+		{"five-hour only", []profileStatus{{Name: "a", Active: true, FiveHour: usage(5)}}, "a 5h 5%"},
+		{"cooling down", []profileStatus{{Name: "a", Active: true, FiveHour: usage(100), CooldownUntil: &later}}, "a limit until " + later.Local().Format("15:04")},
+		{"cooldown over", []profileStatus{{Name: "a", Active: true, FiveHour: usage(1), CooldownUntil: &earlier}}, "a 5h 1%"},
+		{"another profile cools down", []profileStatus{{Name: "a", Active: true}, {Name: "b", CooldownUntil: &later}}, "a"},
+	}
+	for _, tt := range tests {
+		if got := shortStatus(statusReport{Profiles: tt.profiles}, now); got != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
