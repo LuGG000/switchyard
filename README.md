@@ -32,7 +32,7 @@ Install switchyard (next section), then:
 switchyard init                        # config; offers your existing ~/.claude login as the first profile
 switchyard add second                  # log in a second account
 eval "$(switchyard shell-init bash)"   # optional, in your shell startup file: a plain `claude` goes through switchyard
-switchyard run -- --model haiku        # start claude with failover
+switchyard run                         # start claude with failover
 switchyard mod install                 # optional: the /switchyard pane inside claude
 ```
 
@@ -76,7 +76,7 @@ switchyard add main --existing        # use your existing ~/.claude login as a p
 switchyard list                       # profiles and their login state
 switchyard status [--json]            # active profile, last use, cooldowns
 switchyard status --short             # one line for a shell prompt or tmux: main 5h 33% 7d 19%
-switchyard run -- --model haiku       # run claude with the active profile
+switchyard run                        # run claude with the active profile (options go after --, e.g. run -- --model opus)
 switchyard run -- -p "prompt"         # headless run that fails over at a limit
 switchyard switch work2 --resume      # switch and continue the current conversation
 switchyard switch work2 --fresh       # switch and start a new conversation
