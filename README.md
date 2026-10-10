@@ -160,6 +160,7 @@ one setting and a running session picks it up at its next limit.
 | `min_switch_interval_minutes` | `10` (default), `0` = off | minutes that must pass after an automatic switch before the next; until then it asks instead |
 | `max_auto_switches_per_day` | `6` (default), `0` = off | most automatic switches in 24 hours; over that it asks instead |
 | `update_check` | `true` (default), `false` | mention a newer release after `status`, `list` and `doctor` |
+| `notify` | `true` (default), `false` | desktop notification when a session waits for a reset and when the wait is over (Windows toast, `notify-send`, `osascript`) |
 | `color_*` | color or empty | colors of the mod pane, see [mod/README.md](mod/README.md) |
 
 ### Usage thresholds
