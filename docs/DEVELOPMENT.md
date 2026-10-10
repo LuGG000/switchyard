@@ -34,6 +34,8 @@ for `main`.
 - To try the CLI against it: put the built `fakeclaude` as `claude` in a temp
   `PATH` directory and set `SWITCHYARD_DATA_DIR` to a temp dir.
 
+See `docs/MANUAL_TESTS.md` for the checks that need a real TUI or a real claude (the mod's buttons, ending claude on Unix).
+
 ## Tests with real accounts
 
 Keep it cheap: few short prompts, `--model haiku`, an empty temp directory.
