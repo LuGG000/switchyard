@@ -55,6 +55,7 @@ func runInteractive(cmd *cobra.Command, m *profiles.Manager, store *state.Store,
 		CarryContext:   cfg.CarryContext,
 		Limits:         breaker.FromConfig(cfg),
 		Thresholds:     selector.ThresholdsFromConfig(cfg),
+		History:        recordSwitch(),
 		ContinuePrompt: cfg.ContinuePrompt,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)

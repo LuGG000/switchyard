@@ -16,6 +16,7 @@ import (
 
 	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/config"
+	"github.com/LuGG000/switchyard/internal/history"
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
@@ -528,4 +529,59 @@ func TestThresholdRequestIsIgnoredWhenTheOtherProfileIsOverTheThresholdToo(t *te
 	if _, ok := f.runner.watch(ctx, f.runner.Profiles[0], now); ok {
 		t.Error("a threshold request ended the session although the other profile is over the threshold as well")
 	}
+}
+
+// recordHistory makes the runner collect the entries it would write to the history.
+func (f *fixture) recordHistory() *[]history.Entry {
+	var entries []history.Entry
+	f.runner.History = func(e history.Entry) { entries = append(entries, e) }
+
+	return &entries
+}
+
+func TestSwitchesAreWrittenToTheHistory(t *testing.T) {
+	t.Run("auto", func(t *testing.T) {
+		f := newFixture(t, "", "a-limited", "b")
+		entries := f.recordHistory()
+		if code, err := f.run(t); err != nil || code != 0 {
+			t.Fatalf("Run = %d, %v", code, err)
+		}
+		want := history.Entry{From: "a-limited", To: "b", Reason: state.ReasonRateLimit, How: history.Auto}
+		if len(*entries) != 1 || (*entries)[0].From != want.From || (*entries)[0].To != want.To || (*entries)[0].Reason != want.Reason || (*entries)[0].How != want.How || (*entries)[0].Time.IsZero() {
+			t.Errorf("history = %+v, want one entry like %+v", *entries, want)
+		}
+	})
+	t.Run("asked", func(t *testing.T) {
+		f := newFixture(t, "", "a-limited", "b")
+		f.runner.Mode = config.ModeAsk
+		f.runner.In = strings.NewReader("f\n")
+		entries := f.recordHistory()
+		if code, err := f.run(t); err != nil || code != 0 {
+			t.Fatalf("Run = %d, %v", code, err)
+		}
+		if len(*entries) != 1 || (*entries)[0].How != history.Asked || (*entries)[0].Carry {
+			t.Errorf("history = %+v, want one asked switch without the conversation", *entries)
+		}
+	})
+	t.Run("handoff", func(t *testing.T) {
+		f := newFixture(t, "", "a-thr", "b")
+		f.runner.Mode = config.ModeAsk
+		f.runner.In = strings.NewReader("")
+		carry := true
+		f.handoffAfter(t, "a-thr", state.SwitchRequest{Target: "b", SessionID: "s1", Carry: &carry})
+		entries := f.recordHistory()
+		if code, err := f.run(t); err != nil || code != 0 {
+			t.Fatalf("Run = %d, %v", code, err)
+		}
+		if len(*entries) != 1 || (*entries)[0].How != history.Handoff || (*entries)[0].Reason != state.ReasonManual || !(*entries)[0].Carry {
+			t.Errorf("history = %+v, want one handoff", *entries)
+		}
+	})
+	t.Run("a normal exit writes nothing", func(t *testing.T) {
+		f := newFixture(t, "", "a", "b")
+		entries := f.recordHistory()
+		if code, err := f.run(t); err != nil || code != 0 || len(*entries) != 0 {
+			t.Errorf("Run = %d, %v, history %+v", code, err, *entries)
+		}
+	})
 }
