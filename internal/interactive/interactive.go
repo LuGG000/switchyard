@@ -20,6 +20,7 @@ import (
 
 	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/config"
+	"github.com/LuGG000/switchyard/internal/history"
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
@@ -67,11 +68,15 @@ type Runner struct {
 	ModWait time.Duration
 	// ModStale is how old the mod's last poll may be for it to count as present.
 	ModStale time.Duration
+	// History, if set, receives an entry for every switch.
+	History func(history.Entry)
 	// In and Out are the terminal used for questions and notices.
 	In  io.Reader
 	Out io.Writer
 
 	prompt *bufio.Reader
+	// how says how the switch being made came about, for the history.
+	how string
 }
 
 // Run runs claude with args for start. It returns claude's exit code when claude
@@ -92,6 +97,7 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 		if next == nil {
 			return 0, nil
 		}
+		r.record(current, *next, carry, *req)
 		current, attemptArgs = *next, args
 		if carry {
 			attemptArgs = launcher.ResumeArgs(args, req.SessionID)
@@ -286,6 +292,7 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 				if err := breaker.Record(r.Store, r.Now()); err != nil {
 					return nil, false, err
 				}
+				r.how = history.Auto
 				r.printf("switchyard: profile %s %s, continuing with %s\n", current.Name, describe(req.Reason), next.Name)
 				if r.CarryContext {
 					r.printf("%s\n", ColdCacheHint)
@@ -302,8 +309,10 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 		}
 		switch answer {
 		case "y":
+			r.how = history.Asked
 			return &next, true, nil
 		case "f":
+			r.how = history.Asked
 			return &next, false, nil
 		case "w":
 			until := r.waitTarget(current, locked)
@@ -423,7 +432,9 @@ func (r *Runner) next(ctx context.Context, current profiles.Profile, req state.S
 	if answer != nil && answer.Action == state.ActionSwitch {
 		// The mod's buttons asked; the user has decided.
 		req.Target, req.Carry = answer.Target, answer.Carry
-		return r.handoff(current, req)
+		next, carry, err := r.handoff(current, req)
+		r.how = history.Button
+		return next, carry, err
 	}
 	return r.decide(ctx, current, req)
 }
@@ -439,6 +450,7 @@ func (r *Runner) handoff(current profiles.Profile, req state.SwitchRequest) (*pr
 	if req.Carry != nil {
 		carry = *req.Carry
 	}
+	r.how = history.Handoff
 	r.printf("switchyard: switching from %s to %s\n", current.Name, req.Target)
 	if carry {
 		r.printf("%s\n", ColdCacheHint)
@@ -459,4 +471,12 @@ func (r *Runner) reload() {
 	r.Mode, r.Strategy, r.CarryContext, r.ContinuePrompt = cfg.Mode, cfg.Strategy, cfg.CarryContext, cfg.ContinuePrompt
 	r.Limits = breaker.FromConfig(cfg)
 	r.Thresholds = selector.ThresholdsFromConfig(cfg)
+}
+
+// record notes a switch in the history.
+func (r *Runner) record(from, to profiles.Profile, carry bool, req state.SwitchRequest) {
+	if r.History == nil {
+		return
+	}
+	r.History(history.Entry{Time: r.Now().UTC(), From: from.Name, To: to.Name, Reason: req.Reason, How: r.how, Carry: carry})
 }

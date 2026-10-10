@@ -46,6 +46,7 @@ func runHeadless(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p 
 		CarryContext: cfg.CarryContext,
 		Limits:       breaker.FromConfig(cfg),
 		Thresholds:   selector.ThresholdsFromConfig(cfg),
+		History:      recordSwitch(),
 		WaitForReset: waitForReset,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)

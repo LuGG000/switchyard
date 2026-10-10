@@ -84,6 +84,7 @@ your real `~/.claude`.
 
 - Profiles and `state.json`: `%LocalAppData%\switchyard` on Windows, `~/.local/share/switchyard` on Linux and
   macOS (`$XDG_DATA_HOME/switchyard` if that is set; override: `SWITCHYARD_DATA_DIR`).
+  `history.jsonl` next to them is the log of switches that `switchyard history` shows.
 - `config.toml`: `switchyard/` in your user config folder (`%AppData%` on Windows, `~/.config` on Linux, `~/Library/Application Support` on macOS; override: `SWITCHYARD_CONFIG_DIR`).
 
 ## Still stuck

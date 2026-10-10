@@ -17,6 +17,7 @@ import (
 
 	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/config"
+	"github.com/LuGG000/switchyard/internal/history"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
 	"github.com/LuGG000/switchyard/internal/selector"
@@ -373,5 +374,17 @@ func TestRunKeepsTheStartProfileWhenNoneIsUnderTheThreshold(t *testing.T) {
 	}
 	if f.attempts[0].profile != "a-limited" {
 		t.Errorf("first attempt in %s, want the start profile", f.attempts[0].profile)
+	}
+}
+
+func TestHeadlessSwitchesAreWrittenToTheHistory(t *testing.T) {
+	f := newFixture(t, false)
+	var entries []history.Entry
+	f.runner.History = func(e history.Entry) { entries = append(entries, e) }
+	if code, err := f.runner.Run(context.Background(), f.runner.Profiles[0], []string{"-p", "hello"}); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if len(entries) != 1 || entries[0].From != "a-limited" || entries[0].To != "b" || entries[0].Reason != state.ReasonRateLimit || entries[0].How != history.Auto || !entries[0].Carry {
+		t.Errorf("history = %+v, want one automatic switch from a-limited to b", entries)
 	}
 }

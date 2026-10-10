@@ -13,6 +13,7 @@ import (
 
 	"github.com/LuGG000/switchyard/internal/breaker"
 	"github.com/LuGG000/switchyard/internal/detector"
+	"github.com/LuGG000/switchyard/internal/history"
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
@@ -44,6 +45,8 @@ type Runner struct {
 	WaitForReset bool
 	// Wait blocks until the given time; nil waits on the clock. Tests replace it.
 	Wait func(ctx context.Context, until time.Time) error
+	// History, if set, receives an entry for every switch.
+	History func(history.Entry)
 	// Notice receives a line for every switch.
 	Notice io.Writer
 }
@@ -114,6 +117,7 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 			attemptArgs = launcher.ResumeArgs(args, sessionID)
 		}
 		_, _ = fmt.Fprintf(r.Notice, "switchyard: profile %s reached its limit, continuing with %s\n", current.Name, next.Name)
+		r.record(current, next, state.ReasonRateLimit)
 		current = next
 	}
 	return 0, fmt.Errorf("giving up after %d profiles hit their limit", len(r.Profiles))
@@ -216,5 +220,14 @@ func (r *Runner) startProfile(start profiles.Profile) (profiles.Profile, error) 
 		return start, err
 	}
 	_, _ = fmt.Fprintf(r.Notice, "switchyard: profile %s is over its usage threshold, starting with %s\n", start.Name, next.Name)
+	r.record(start, next, state.ReasonThreshold)
 	return next, nil
+}
+
+// record notes an automatic switch in the history; headless runs have no one to ask.
+func (r *Runner) record(from, to profiles.Profile, reason string) {
+	if r.History == nil {
+		return
+	}
+	r.History(history.Entry{Time: r.Now().UTC(), From: from.Name, To: to.Name, Reason: reason, How: history.Auto, Carry: r.CarryContext})
 }

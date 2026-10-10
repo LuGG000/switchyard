@@ -82,6 +82,7 @@ switchyard add main --existing        # use your existing ~/.claude login as a p
 switchyard list                       # profiles and their login state
 switchyard status [--json]            # active profile, last use, cooldowns
 switchyard status --short             # one line for a shell prompt or tmux: main 5h 33% 7d 19%
+switchyard history [-n 20] [--json]   # the recent switches: when, from, to, why and how
 switchyard run                        # run claude with the active profile (options go after --, e.g. run -- --model opus)
 switchyard run -- -p "prompt"         # headless run that fails over at a limit
 switchyard run --wait -- -p "prompt"   # the same, and wait for the first reset if every profile is at its limit
