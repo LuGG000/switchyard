@@ -221,7 +221,10 @@ func (r *Runner) askMod(ctx context.Context, p profiles.Profile, req state.Switc
 		case <-ticker.C:
 		}
 		st, err := r.Store.Read()
-		if err != nil || st.Decision == nil {
+		if err != nil {
+			continue
+		}
+		if st.Decision == nil {
 			return nil
 		}
 		if st.Decision.Answer != nil {
