@@ -16,7 +16,7 @@ One command, `/switchyard`, opens a pane with two pages:
   two minutes without an answer, or without the mod, the terminal asks as before.
 - **Update:** a toast mentions a newer switchyard release once per session; the overview shows an **Update available** block
   with an **Update now** button. It installs in the background; your claude session keeps running.
-- **Style:** palettes (theme, dark, light), a preview of the usage colors and an editor for
+- **Style:** palettes (theme, dark, light), a preview of the usage colors, a list of every color with its current value, and an editor for
   every color: click the color to change, then a new value (`default` or a common color name,
   shown with a swatch, the current one ticked; all of it works with the mouse), plus a field
   for any other color: type a hex code such as `#00ff88` for the chosen color (or

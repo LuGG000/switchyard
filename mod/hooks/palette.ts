@@ -43,3 +43,13 @@ export function palette(colors: Colors | null | undefined): Palette {
     border: unset(colors?.border) ?? DEFAULT_COLOR.border ?? '',
   }
 }
+
+/** What a slot shows on the style page: the set value, or what the default draws. */
+export function describeColor(value: string | undefined, slot: ColorSlot): string {
+  const set = unset(value)
+  if (set) {
+    return set
+  }
+
+  return `default (${DEFAULT_COLOR[slot] ?? (slot === 'background' ? 'Claude background' : 'Claude text color')})`
+}

@@ -212,7 +212,10 @@ test('the style page shows the palettes, a preview and the colors in use, and le
   for (const key of ['colors-default', 'colors-dark', 'colors-light', 'back']) {
     expect(await ui.find({ key })).toBeDefined()
   }
-  expect(JSON.stringify(await ui.drawn())).toContain('background: #1e1e1e')
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('#1e1e1e')
+  expect(drawn).toContain('#f48771')
+  expect(drawn).toContain('default (success)')
   expect(await ui.find({ type: 'Text', text: /from 90%/ })).toBeDefined()
   expect(await ui.find({ key: 'mode-auto' })).toBeUndefined()
 
@@ -418,5 +421,27 @@ test('without a waiting limit the pane shows no question', async ($, on) => {
 
   const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
   expect(await ui.find({ key: 'decide-stay' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('the style page lists every color with its value and marks the chosen one', async ($, on) => {
+  const custom = JSON.stringify({ schema: 1, mode: 'ask', carry_context: true, colors: { ...COLORS, text: '#abcdef', border: 'cyan' } })
+  world(on, argv => (argv[1] === 'config' ? { exitCode: 0, stdout: custom, stderr: '' } : { exitCode: 0, stdout: STATUS, stderr: '' }))
+  await runCommand($, 'switchyard', 'style')
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  const drawn = JSON.stringify(await ui.drawn())
+  for (const label of ['background', 'text', 'usage low', 'usage medium', 'usage high', 'active border', 'other borders']) {
+    expect(drawn).toContain(label)
+  }
+  expect(drawn).toContain('#abcdef')
+  expect(drawn).toContain('cyan')
+  expect(drawn).toContain('default (green)')
+  expect(drawn).toContain('▸ background')
+
+  await ui.press({ key: 'slot-text' })
+  const moved = JSON.stringify(await ui.drawn())
+  expect(moved).toContain('▸ text')
+  expect(moved).not.toContain('▸ background')
   await ui.unmount()
 })

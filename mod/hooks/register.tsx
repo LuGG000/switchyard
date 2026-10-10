@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Page, Pending, Settings, Snapshot, Usage } from '../types'
-import { DEFAULT_COLOR, palette } from './palette'
+import { DEFAULT_COLOR, describeColor, palette } from './palette'
 import {
   COLOR_SLOTS,
   describeSettings,
@@ -308,7 +308,20 @@ export const register: Register = on => {
                   />
                 ))}
               </Box>
-              {dim(`${chosen.label}: ${chosenValue === '' ? `default (${DEFAULT_COLOR[chosen.id] ?? 'engine'})` : chosenValue}`)}
+              <Box flexDirection="column">
+                {COLOR_SLOTS.map(slot => {
+                  const value = slot.get(settings.colors)
+                  const isChosen = slot.id === chosen.id
+
+                  return (
+                    <Box key={`value-${slot.id}`} gap={1}>
+                      <Text color={value.trim() || DEFAULT_COLOR[slot.id]}>■</Text>
+                      <Text bold={isChosen} color={colors.text}>{`${isChosen ? '▸' : ' '} ${slot.label.padEnd(13)}`}</Text>
+                      {dim(describeColor(value, slot.id))}
+                    </Box>
+                  )
+                })}
+              </Box>
               <Box gap={1} flexWrap="wrap">
                 {['default', ...NAMED_COLORS].map(name => {
                   const isCurrent = name === 'default' ? chosenValue === '' : chosenValue.toLowerCase() === name

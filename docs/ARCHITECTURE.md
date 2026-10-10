@@ -151,7 +151,7 @@ Consumers must check `schema` first.
   line of its own (the statusLine that `run` injects already shows the active
   account; a second line duplicated it). It has one command, `/switchyard`: a pane with an
   overview page (account cards and a Failover card that sets `mode` and `carry_context`
-  through `config set`) and a style page (palettes, preview, buttons to choose a color and its value, and a field for any color, all through `config set`), plus the
+  through `config set`) and a style page (palettes, preview, a list of every color with its current value and the chosen one marked, buttons to choose a color and its value, and a field for any color, all through `config set`), plus the
   arguments `style`, `switch <account>` and `mode`. The page is kept in `$.state`.
   It refreshes on opening and after each turn. Its colors are settings of switchyard (`color_*`, empty = the theme's;
   `config colors <palette>` sets all), so they never touch the Claude theme or other mods. A
