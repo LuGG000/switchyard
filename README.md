@@ -40,7 +40,9 @@ What happens at a limit is set with `switchyard config set mode ask|auto` (see [
 
 ## Install
 
-From source (Go 1.25 or newer):
+You need Claude Code (`claude` on your `PATH`, tested with 2.1.296) and a Pro or Max login for each account, on Windows, Linux or macOS (see [Scope](#scope)); Go 1.26 or newer only to build from source. A step-by-step guide from install to removal is in [docs/SETUP.md](docs/SETUP.md).
+
+From source (Go 1.26 or newer):
 
 ```
 go install github.com/LuGG000/switchyard/cmd/switchyard@latest
@@ -188,6 +190,7 @@ and may change between releases.
 
 ## Documentation
 
+- [docs/SETUP.md](docs/SETUP.md): the full setup guide, from install to removal
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): packages and the decisions taken
 - [docs/SPIKE.md](docs/SPIKE.md): what was verified against `claude`
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test and contribute
