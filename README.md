@@ -65,6 +65,7 @@ switchyard switch work2 --resume      # switch and continue the current conversa
 switchyard switch work2 --fresh       # switch and start a new conversation
 switchyard switch work2 --no-launch   # only change the active profile
 switchyard handoff work2              # ask the running session to continue in work2
+switchyard decision                   # the limit that waits for the mod's buttons (used by the mod)
 switchyard config                     # failover settings
 switchyard config set mode auto       # switch at a limit without asking
 switchyard config colors dark         # colors of the mod pane: default, dark or light
@@ -124,7 +125,8 @@ nothing about you.
 ## Optional mod
 
 The mod adds a `/switchyard` pane inside Claude Code: usage bars per account,
-buttons to continue in another account, and the failover mode and colors as
+buttons to continue in another account, buttons that answer the "limit reached" question while
+claude keeps running (in ask mode), and the failover mode and colors as
 settings. switchyard works without it.
 
 ```

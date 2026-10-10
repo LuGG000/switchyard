@@ -3,11 +3,13 @@ import { expect, test } from 'claude-code/testing'
 import {
   describeSettings,
   parseConfig,
+  parseDecision,
   parseStatus,
   parseCommand,
   parseColorEntry,
   problem,
   resetLabel,
+  secondsLeft,
   usageBar,
   usageLevel,
 } from '../hooks/status'
@@ -153,4 +155,23 @@ test('a newer release is read from the status, anything odd is no update', async
 test('/switchyard update takes no argument', async () => {
   expect(parseCommand('update')).toEqual({ kind: 'update' })
   expect(parseCommand('update now')).toEqual({ kind: 'help' })
+})
+
+test('a waiting limit is read from decision --json, anything else is nothing', async () => {
+  const report = (pending: unknown, schema = 1) => JSON.stringify({ schema, pending })
+  const pending = { profile: 'main', reason: 'rate_limit', options: ['work2'], carry: true, expires_at: '2026-10-10T12:02:00Z' }
+  expect(parseDecision(report(pending))).toEqual(pending)
+  expect(parseDecision(report(null))).toBe(null)
+  expect(parseDecision(report(pending, 2))).toBe(null)
+  expect(parseDecision(report({ ...pending, carry: 'yes' }))).toBe(null)
+  expect(parseDecision(report({ ...pending, options: ['a', 3] }))?.options).toEqual(['a'])
+  for (const text of ['', 'nope', '[]', JSON.stringify({ schema: 1 })]) {
+    expect(parseDecision(text)).toBe(null)
+  }
+})
+
+test('the seconds left never go below zero', async () => {
+  const now = Date.parse('2026-10-10T12:00:00Z')
+  expect(secondsLeft('2026-10-10T12:01:30Z', now)).toBe(90)
+  expect(secondsLeft('2026-10-10T11:59:00Z', now)).toBe(0)
 })

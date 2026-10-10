@@ -17,6 +17,10 @@ const (
 	failoverPoll = 250 * time.Millisecond
 	// stopGrace is how long claude gets to exit before it is killed at a switch.
 	stopGrace = 5 * time.Second
+	// modWait is how long the mod's buttons get to answer a limit before the terminal asks.
+	modWait = 2 * time.Minute
+	// modStale is how old the mod's last poll may be for the buttons to be used.
+	modStale = 10 * time.Second
 )
 
 // runInteractive runs claude in the terminal with p and fails over to the next
@@ -44,6 +48,8 @@ func runInteractive(cmd *cobra.Command, m *profiles.Manager, store *state.Store,
 		Profiles:       list,
 		Mode:           cfg.Mode,
 		Strategy:       cfg.Strategy,
+		ModWait:        modWait,
+		ModStale:       modStale,
 		CarryContext:   cfg.CarryContext,
 		ContinuePrompt: cfg.ContinuePrompt,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {

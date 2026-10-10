@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Page, Settings, Snapshot, Usage } from '../types'
+import type { Page, Pending, Settings, Snapshot, Usage } from '../types'
 import { DEFAULT_COLOR, palette } from './palette'
 import {
   COLOR_SLOTS,
@@ -11,10 +11,12 @@ import {
   parseCommand,
   NAMED_COLORS,
   parseConfig,
+  parseDecision,
   parseColorEntry,
   parseStatus,
   problem,
   resetLabel,
+  secondsLeft,
   timeOfDay,
   usageBar,
   usageLevel,
@@ -26,6 +28,7 @@ const PANE = 'switchyard'
 const snapshot = atom({ plugin: 'switchyard-mod', key: 'snapshot' } as const, null)
 const page = atom({ plugin: 'switchyard-mod', key: 'page' } as const, 'main')
 const slotAtom = atom({ plugin: 'switchyard-mod', key: 'slot' } as const, 'background')
+const decisionAtom = atom({ plugin: 'switchyard-mod', key: 'decision' } as const, null)
 
 type Engine = EngineInterface
 
@@ -60,9 +63,34 @@ async function load($: Engine): Promise<Snapshot> {
   return status.kind === 'ok' ? { ...status, settings: await loadSettings($) } : status
 }
 
+/**
+ * Reads the limit that waits for an answer. Every call also tells the launcher that this mod is
+ * present, which is what makes it keep claude running at a limit and wait for the buttons.
+ */
+async function pollDecision($: Engine): Promise<Pending | null> {
+  const result = await run($, ['decision', '--json'], 5_000)
+  const pending = 'stdout' in result ? parseDecision(result.stdout) : null
+  await update($, decisionAtom, () => pending)
+
+  return pending
+}
+
+let announced = ''
+
+/** One round of polling: a new question opens the pane and says so. */
+async function watchDecision($: Engine): Promise<void> {
+  const pending = await pollDecision($)
+  if (pending && pending.expires_at !== announced) {
+    announced = pending.expires_at
+    $.ui.toast(`${pending.profile} reached its limit. Choose in the switchyard pane.`)
+    await $.ui.open({ id: PANE, title: 'switchyard' })
+  }
+}
+
 async function refresh($: Engine): Promise<void> {
   const current = await load($)
   await update($, snapshot, () => current)
+  await pollDecision($)
 }
 
 /** Runs a command that changes switchyard, then refreshes; the answer is the text to show. */
@@ -78,6 +106,14 @@ async function change($: Engine, argv: string[], done: string): Promise<string> 
 
 const setSetting = ($: Engine, key: string, value: string) => change($, ['config', 'set', key, value], `${key} = ${value}`)
 const setPalette = ($: Engine, name: string) => change($, ['config', 'colors', name], `Colors: ${name}`)
+
+/** Answers the limit that waits for a decision; the text to show. */
+async function decide($: Engine, argv: string[], done: string): Promise<string> {
+  const result = await run($, ['decision', 'answer', ...argv])
+  await pollDecision($)
+
+  return 'error' in result ? result.error : done
+}
 
 /** Asks the launcher to continue in `name`; the answer is the text to show. */
 async function handoff($: Engine, name: string, flag?: '--resume' | '--fresh'): Promise<string> {
@@ -115,7 +151,12 @@ export const register: Register = on => {
     await $.command.register({
       name: 'switchyard',
       description: 'Accounts, failover and style of switchyard',
-      argumentHint: '[style | switch <account> [resume|fresh] | mode [auto|ask]]',
+      argumentHint: '[style | switch <account> [resume|fresh] | mode [auto|ask] | update]',
+    })
+
+    // Polling is what tells the launcher a mod is here; it also picks up a limit that waits for the buttons.
+    $.clock.every(2_000, () => {
+      void watchDecision($)
     })
 
     return next(e)
@@ -164,6 +205,7 @@ export const register: Register = on => {
     const Input = 'Input' in elements ? elements.Input : null
     const current = await read($, snapshot)
     const shown = await read($, page)
+    const question = await read($, decisionAtom)
     const chosenId = await read($, slotAtom)
     const chosen = COLOR_SLOTS.find(s => s.id === chosenId) ?? COLOR_SLOTS[0]
     const now = await $.clock.now()
@@ -304,6 +346,30 @@ export const register: Register = on => {
           {refreshButton}
           {closeButton}
         </Box>
+        {question && (
+          <Box flexDirection="column" borderStyle="round" borderColor={colors.high} paddingX={1}>
+            <Text bold color={colors.high}>{question.profile} reached its limit</Text>
+            {dim(`claude keeps running while you choose (${secondsLeft(question.expires_at, now)} s left, then the terminal asks).`)}
+            {question.options.map(name => (
+              <Box key={name} gap={1}>
+                <Button
+                  key={`decide-${name}`}
+                  label={`Continue in ${name}`}
+                  variant="primary"
+                  onPress={async () => $.ui.toast(await decide($, ['switch', name, '--resume'], `Continuing in ${name} ...`))}
+                />
+                <Button
+                  key={`decide-fresh-${name}`}
+                  label={`New conversation in ${name}`}
+                  onPress={async () => $.ui.toast(await decide($, ['switch', name, '--fresh'], `Starting fresh in ${name} ...`))}
+                />
+              </Box>
+            ))}
+            <Box gap={1}>
+              <Button key="decide-stay" label="Stay here" onPress={async () => $.ui.toast(await decide($, ['stay'], 'Staying in this account.'))} />
+            </Box>
+          </Box>
+        )}
         {pending && (
           <Box flexDirection="column" borderStyle="round" borderColor={colors.medium} paddingX={1}>
             <Text bold color={colors.medium}>Update available: switchyard {pending.version}</Text>

@@ -340,3 +340,69 @@ test('/switchyard update installs the release, or says it is up to date', async 
   expect(calls.some(argv => argv[1] === 'update' && argv[2] === '--install')).toBe(true)
   expect(JSON.stringify(result)).toMatch(/0\.2\.0/)
 })
+
+const QUESTION = JSON.stringify({
+  schema: 1,
+  pending: { profile: 'main', reason: 'rate_limit', options: ['work2'], carry: true, expires_at: '2026-10-09T12:02:00Z' },
+})
+
+/** A world in which main hit its limit: `decision --json` shows the question until it is answered. */
+function limitWorld(on: On) {
+  let answered = false
+
+  return fakeCli(on, argv => {
+    if (argv[1] === 'decision' && argv[2] === 'answer') {
+      answered = true
+
+      return { exitCode: 0, stdout: 'Answered\n', stderr: '' }
+    }
+    if (argv[1] === 'decision') {
+      return { exitCode: 0, stdout: answered ? JSON.stringify({ schema: 1, pending: null }) : QUESTION, stderr: '' }
+    }
+
+    return { exitCode: 0, stdout: STATUS, stderr: '' }
+  })
+}
+
+test('a limit that waits shows buttons, and a button answers it', async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-10-09T12:00:00Z') })
+  on('session.id', () => ({ value: 'session-1' }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  const calls = limitWorld(on)
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  expect(await ui.find({ type: 'Text', text: /main reached its limit/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /120 s left/ })).toBeDefined()
+  await ui.press({ key: 'decide-fresh-work2' })
+  expect(calls.find(argv => argv[2] === 'answer')).toEqual(['switchyard', 'decision', 'answer', 'switch', 'work2', '--fresh'])
+  expect(await ui.find({ key: 'decide-work2' })).toBeUndefined()
+  await ui.unmount()
+})
+
+for (const [name, key, answer] of [
+  ['continue', 'decide-work2', ['switch', 'work2', '--resume']],
+  ['stay', 'decide-stay', ['stay']],
+] as const) {
+  test(`the ${name} button sends its own answer`, async ($, on) => {
+    mock.clock(on, { now: Date.parse('2026-10-09T12:00:00Z') })
+    on('session.id', () => ({ value: 'session-1' }))
+    on('ui.open', () => ({ value: { isPlaced: true } }))
+    const calls = limitWorld(on)
+    await openAccounts($)
+
+    const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+    await ui.press({ key })
+    expect(calls.find(argv => argv[2] === 'answer')?.slice(3)).toEqual([...answer])
+    await ui.unmount()
+  })
+}
+
+test('without a waiting limit the pane shows no question', async ($, on) => {
+  world(on, () => ({ exitCode: 0, stdout: STATUS, stderr: '' }))
+  await openAccounts($)
+
+  const ui = await $.ui.mount({ plugin: 'switchyard-mod', surface: 'terminal', component: 'Pane', props: PANE, requestId: 'switchyard' })
+  expect(await ui.find({ key: 'decide-stay' })).toBeUndefined()
+  await ui.unmount()
+})

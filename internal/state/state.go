@@ -73,6 +73,7 @@ type State struct {
 	Active        string             `json:"active,omitempty"`
 	Profiles      map[string]Profile `json:"profiles"`
 	SwitchRequest *SwitchRequest     `json:"switch_request,omitempty"`
+	Decision      *Decision          `json:"decision,omitempty"`
 }
 
 // Store reads and writes one state file.
