@@ -105,7 +105,7 @@ switchyard also tells you, with or without the mod:
 - `switchyard run` looks for a newer release once a day. When there is one, the status line
   under the prompt ends with `update 0.2.0 available`, and `status`, `list` and `doctor`
   print a hint.
-- With the mod, `/switchyard` shows an **Update available** block with an **Update now** button
+- With the mod, a toast mentions a newer release once per session, and `/switchyard` shows an **Update available** block with an **Update now** button
   (or type `/switchyard update`).
 - `switchyard update` checks right away; `switchyard update --install` downloads the archive
   for your system, checks it against the published `checksums.txt` and replaces the binary.
