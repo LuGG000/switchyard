@@ -4,9 +4,10 @@ Open-source account switcher with limit failover for Claude Code subscription
 logins (Pro/Max). Keep several of your own logins as profiles; when one hits its
 usage limit, switchyard continues the conversation in the next one.
 
-**Status: early development.** Profiles, switching, `run` and the failover
-(headless and interactive) work against the real `claude`. A real usage limit has
-not been observed yet, so the limit detection is tested with simulated limits only.
+**Status: early development.** Profiles, switching, `run`, the failover (headless and interactive)
+and the mod have been used with the real `claude` on Windows. A real usage limit has not been
+observed yet, so the limit detection is tested with simulated limits only. Linux and macOS are
+built and tested in CI; see [Scope](#scope) for what is verified where.
 
 ## How it works
 
@@ -22,6 +23,20 @@ not been observed yet, so the limit detection is tested with simulated limits on
 - At a limit (or when `proactive_threshold` is reached) the launcher ends `claude`
   and starts it again in the next profile, continuing the conversation when
   `carry_context` is on. Headless runs (`run -- -p "prompt"`) fail over the same way.
+
+## Quick start
+
+Install switchyard (next section), then:
+
+```
+switchyard init                        # config; offers your existing ~/.claude login as the first profile
+switchyard add second                  # log in a second account
+eval "$(switchyard shell-init bash)"   # optional, in your shell startup file: a plain `claude` goes through switchyard
+switchyard run -- --model haiku        # start claude with failover
+switchyard mod install                 # optional: the /switchyard pane inside claude
+```
+
+What happens at a limit is set with `switchyard config set mode ask|auto` (see [Configuration](#configuration)).
 
 ## Install
 
@@ -57,10 +72,10 @@ but does not verify the signature itself.
 ```
 switchyard init                       # create the default config.toml
 switchyard add work1                  # create a profile and log it in
-switchyard add main --existing      # use your existing ~/.claude login as a profile, no new login
+switchyard add main --existing        # use your existing ~/.claude login as a profile, no new login
 switchyard list                       # profiles and their login state
 switchyard status [--json]            # active profile, last use, cooldowns
-switchyard status --short           # one line for a shell prompt or tmux: main 5h 33% 7d 19%
+switchyard status --short             # one line for a shell prompt or tmux: main 5h 33% 7d 19%
 switchyard run -- --model haiku       # run claude with the active profile
 switchyard run -- -p "prompt"         # headless run that fails over at a limit
 switchyard switch work2 --resume      # switch and continue the current conversation
@@ -181,8 +196,11 @@ and may change between releases.
 ## Scope
 
 Subscription logins only (`authMethod: claude.ai`). API-key, Console, Bedrock,
-Vertex and Foundry accounts are explicitly out of scope. Supported: Linux and
-Windows; macOS binaries are built but not tested yet, and WSL is not verified.
+Vertex and Foundry accounts are explicitly out of scope. Verified by hand
+with the real `claude`: Windows. Linux is built and tested in CI and the statusLine was
+checked in its TUI, but ending an interactive `claude` there is not verified yet ([#2](https://github.com/LuGG000/switchyard/issues/2)).
+macOS binaries are built and tested in CI only. WSL is not verified (it behaves like Linux inside).
+What is checked and how is in [docs/SPIKE.md](docs/SPIKE.md).
 
 ## Non-goals
 
