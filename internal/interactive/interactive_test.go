@@ -19,7 +19,6 @@ import (
 	"github.com/LuGG000/switchyard/internal/hooks"
 	"github.com/LuGG000/switchyard/internal/launcher"
 	"github.com/LuGG000/switchyard/internal/profiles"
-	"github.com/LuGG000/switchyard/internal/selector"
 	"github.com/LuGG000/switchyard/internal/state"
 )
 
@@ -204,12 +203,53 @@ func TestAutoSwitchOnThreshold(t *testing.T) {
 	}
 }
 
-func TestAutoAllProfilesLimited(t *testing.T) {
+func TestAutoWaitsForTheEarliestResetAndContinues(t *testing.T) {
+	f := newFixture(t, "", "a-limited", "b")
+	reset := time.Now().Add(20 * time.Minute)
+	err := f.store.Update(func(st *state.State) error {
+		st.Profiles["b"] = state.Profile{CooldownUntil: reset}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := time.Now()
+	f.runner.Now = func() time.Time { return clock }
+	var waited []time.Time
+	f.runner.Wait = func(_ context.Context, until time.Time) error {
+		waited = append(waited, until)
+		clock = until
+		return nil
+	}
+
+	if code, err := f.run(t); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if len(waited) != 1 || !waited[0].Equal(reset) {
+		t.Errorf("waited for %v, want once for %v", waited, reset)
+	}
+	if !slices.Equal(f.launches, []string{"a-limited", "b"}) {
+		t.Errorf("launches = %v, want the run to continue in b after the wait", f.launches)
+	}
+	if !strings.Contains(f.out.String(), "every profile is at its limit; waiting until") {
+		t.Errorf("output = %q", f.out.String())
+	}
+}
+
+func TestStoppingTheWaitEndsTheRunWithoutAnError(t *testing.T) {
 	f := newFixture(t, "", "a-limited", "b-limited")
-	_, err := f.run(t)
-	var locked *selector.AllLockedError
-	if !errors.As(err, &locked) {
-		t.Fatalf("err = %v, want AllLockedError", err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	f.runner.Wait = func(ctx context.Context, _ time.Time) error {
+		cancel()
+		return ctx.Err()
+	}
+	code, err := f.runner.Run(ctx, f.runner.Profiles[0], nil)
+	if err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if !strings.Contains(f.out.String(), "stopped waiting") {
+		t.Errorf("output = %q", f.out.String())
 	}
 }
 

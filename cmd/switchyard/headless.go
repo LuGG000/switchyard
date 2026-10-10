@@ -22,7 +22,7 @@ func isHeadless(args []string) bool {
 // runHeadless runs claude non-interactively and fails over to the next profile
 // at a rate limit. There is no terminal to ask, so the failover is automatic
 // whatever the config mode says.
-func runHeadless(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p profiles.Profile, args []string) error {
+func runHeadless(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p profiles.Profile, args []string, waitForReset bool) error {
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -44,6 +44,7 @@ func runHeadless(cmd *cobra.Command, m *profiles.Manager, store *state.Store, p 
 		Strategy:     cfg.Strategy,
 		CarryContext: cfg.CarryContext,
 		Limits:       breaker.FromConfig(cfg),
+		WaitForReset: waitForReset,
 		Prepare: func(p profiles.Profile, args []string) ([]string, error) {
 			return prepareRun(store, p, args)
 		},

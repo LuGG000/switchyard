@@ -284,3 +284,15 @@ asks through buttons and keeps claude running meanwhile:
 - The defaults (10 minutes, 6 per day) also apply to config files that do not mention the keys. The limit is a
   calmer pattern, not a guarantee about how a provider sees accounts; the README says so.
 - Tested with unit tests of the arithmetic and of both runners against `fakeclaude`; not tried with a real limit (#1).
+
+## Waiting for the first reset
+
+- When every profile is at its limit, `selector.NextProfile` returns an `AllLockedError` with the earliest reset.
+  Interactive: in `auto` mode the runner prints the time and waits (`selector.WaitUntil`, Ctrl+C ends the wait and the
+  run without an error), then chooses again; `ask` mode keeps its question with `[w]` and now uses the same wait.
+  Headless: only with `run --wait`; without it the run stops with exit code 75 as before. After a wait every profile
+  gets an attempt again.
+- The switch after a wait is an automatic switch like any other: it is counted and bound by the limits of the
+  circuit breaker.
+- Both runners have a `Wait` hook so tests move a fake clock instead of sleeping. Not tried with a real limit (#1).
+- A desktop notification when all profiles are limited or the wait ends is a separate, later step (issue).

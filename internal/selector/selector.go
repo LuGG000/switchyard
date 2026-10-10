@@ -2,6 +2,7 @@
 package selector
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -136,4 +137,17 @@ func NextProfile(store *state.Store, list []profiles.Profile, strategy, current 
 		return profiles.Profile{}, fmt.Errorf("selected profile %q does not exist", name)
 	}
 	return list[i], nil
+}
+
+// WaitUntil blocks until until, judged by now, or until ctx ends, in which case it
+// returns the error of ctx.
+func WaitUntil(ctx context.Context, until time.Time, now func() time.Time) error {
+	timer := time.NewTimer(until.Sub(now()))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

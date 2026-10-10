@@ -286,3 +286,50 @@ func TestRunStopsWhileTheLimitsAreReached(t *testing.T) {
 		t.Errorf("state = %+v, want the limited profile in cooldown and no new switch", st)
 	}
 }
+
+func TestRunWaitsForTheEarliestResetWhenAsked(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.WaitForReset = true
+	reset := time.Now().Add(20 * time.Minute)
+	err := f.store.Update(func(st *state.State) error {
+		st.Profiles["b"] = state.Profile{CooldownUntil: reset}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := time.Now()
+	f.runner.Now = func() time.Time { return clock }
+	var waited []time.Time
+	f.runner.Wait = func(_ context.Context, until time.Time) error {
+		waited = append(waited, until)
+		clock = until
+
+		return nil
+	}
+
+	if code, err := f.runner.Run(context.Background(), f.runner.Profiles[0], []string{"-p", "hello"}); err != nil || code != 0 {
+		t.Fatalf("Run = %d, %v", code, err)
+	}
+	if len(waited) != 1 || !waited[0].Equal(reset) {
+		t.Errorf("waited for %v, want once for %v", waited, reset)
+	}
+	if got := []string{f.attempts[0].profile, f.attempts[len(f.attempts)-1].profile}; !slices.Equal(got, []string{"a-limited", "b"}) {
+		t.Errorf("attempts = %v, want the run to continue in b", f.attempts)
+	}
+	if !strings.Contains(f.notice.String(), "every profile is at its limit; waiting until") {
+		t.Errorf("notice = %q", f.notice.String())
+	}
+}
+
+func TestAnInterruptedWaitEndsTheRun(t *testing.T) {
+	f := newFixture(t, false)
+	f.runner.WaitForReset = true
+	f.runner.Profiles[1].Dir += "-limited"
+	stop := errors.New("interrupted")
+	f.runner.Wait = func(context.Context, time.Time) error { return stop }
+
+	if _, err := f.runner.Run(context.Background(), f.runner.Profiles[0], []string{"-p", "hello"}); !errors.Is(err, stop) {
+		t.Fatalf("Run = %v, want the error of the wait", err)
+	}
+}

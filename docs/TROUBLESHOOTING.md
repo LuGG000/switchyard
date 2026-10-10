@@ -46,7 +46,9 @@ different file, is never overwritten: look at both files and remove the one you 
 
 `switchyard run` and `switchyard switch` stop with the earliest reset time when no profile is available, and
 exit with code 75 so a script can wait and retry. `switchyard status` shows the cooldowns and the usage per
-profile. A cooldown from a simulated limit ends by itself; how to clear it earlier is in
+profile. An interactive session waits for the first reset by itself
+and continues in the profile that is available then (Ctrl+C stops waiting); for a headless run add `--wait`
+(`switchyard run --wait -- -p "..."`) or let the script retry on 75. A cooldown from a simulated limit ends by itself; how to clear it earlier is in
 [docs/MANUAL_TESTS.md](MANUAL_TESTS.md).
 
 ## It asks instead of switching, or a run stops with exit code 76
