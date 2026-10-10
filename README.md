@@ -282,7 +282,7 @@ including possible account restrictions.
 Remove each profile with `switchyard remove <name>`: a profile made with `--existing` loses only its
 link and your `~/.claude` stays untouched. Then remove the mod (`claude plugin uninstall
 switchyard-mod@switchyard`), the line from `switchyard shell-init` in your shell startup file, the
-`switchyard` binary, and the data and config folders. [docs/SETUP.md](docs/SETUP.md) lists the paths.
+`switchyard` binary, and the data and config folders. [docs/SETUP.md](docs/SETUP.md) lists the paths. On Windows, the first desktop notification registers the name "switchyard" for the current user; remove it with `Remove-Item HKCU:\Software\Classes\AppUserModelId\switchyard`.
 
 ## License
 

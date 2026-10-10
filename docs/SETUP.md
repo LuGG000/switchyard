@@ -114,7 +114,8 @@ session is not interrupted. The mod is updated with `claude plugin update switch
 2. Remove the mod: `claude plugin uninstall switchyard-mod@switchyard`.
 3. Remove the `switchyard shell-init` line from your shell startup file, if you added it.
 4. Delete the `switchyard` binary.
-5. Delete the profile folder (`%LocalAppData%\switchyard` on Windows, `~/.local/share/switchyard` on
+5. On Windows, if a desktop notification was ever shown: `Remove-Item HKCU:\Software\Classes\AppUserModelId\switchyard` (the name switchyard registered for its notifications).
+6. Delete the profile folder (`%LocalAppData%\switchyard` on Windows, `~/.local/share/switchyard` on
    Linux and macOS) and the config folder from step 2.
 
    **Careful:** a profile made with `--existing` is a link to your real `~/.claude`. `switchyard remove` handles it

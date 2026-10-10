@@ -342,11 +342,16 @@ asks through buttons and keeps claude running meanwhile:
 ## Desktop notifications
 
 - `internal/notify` shows a notification with what the system has, no dependency: a toast through Windows PowerShell under
-  PowerShell's own application id, `notify-send` on Linux, `osascript` on macOS. The title and text are passed in the
+  its own application id, `notify-send` on Linux, `osascript` on macOS. The title and text are passed in the
   environment (Windows, macOS) or after `--` (Linux), never inside a script, so quotes in them cannot break anything.
 - The interactive runner notifies when it starts waiting for the first reset ("Every profile is at its limit. Waiting until
   14:00."), and when the wait is over. `notify = false` turns it off and applies at the next limit. Headless runs never
   notify: they have no one at a screen and may run from a script.
+- On Windows the toast carries the name "switchyard" (without it, it would show up as "Windows PowerShell"). That needs a
+  registered application id, which the script creates once for the current user under
+  `HKCU:\Software\Classes\AppUserModelId\switchyard` (a display name only, no administrator rights); the uninstall
+  steps in the README and the setup guide say how to remove it. There is no icon: the project has no logo.
+  Linux and macOS notifications look as the desktop makes them; `osascript` cannot change the sender or the icon.
 - Best effort: the command runs in the background and a system without the tool simply shows nothing.
 - Verified: the command construction on all three systems (unit tests) and a real toast call on Windows (the call
-  succeeds; seeing it needs `SWITCHYARD_NOTIFY_REAL=1 go test ./internal/notify -run Real -v`). Not tried on Linux and macOS.
+  succeeds; seeing it needs `SWITCHYARD_NOTIFY_REAL=1 go test ./internal/notify -run Real -v`, in PowerShell `$env:SWITCHYARD_NOTIFY_REAL = "1"; go test ./internal/notify -run Real -v`). Not tried on Linux and macOS.
