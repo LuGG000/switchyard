@@ -17,8 +17,8 @@ import (
 	"github.com/LuGG000/switchyard/internal/state"
 )
 
-// dryRunManager is a profile manager that does not need claude, since nothing is started.
-func dryRunManager() (*profiles.Manager, error) {
+// rootOnlyManager is a profile manager that does not need claude, for commands that start nothing.
+func rootOnlyManager() (*profiles.Manager, error) {
 	root, err := profilesRoot()
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func countOrOff(n int) string {
 
 // dryRunPlan is `run --dry-run`: the plan for the profile run would start with.
 func dryRunPlan(cmd *cobra.Command, profileName string, args []string) error {
-	m, err := dryRunManager()
+	m, err := rootOnlyManager()
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func dryRunPlan(cmd *cobra.Command, profileName string, args []string) error {
 
 // dryRunSwitch is `switch --dry-run`: what switching to args[0] would do.
 func dryRunSwitch(cmd *cobra.Command, carryContext bool, args []string, resume, fresh, noLaunch bool) error {
-	m, err := dryRunManager()
+	m, err := rootOnlyManager()
 	if err != nil {
 		return err
 	}
