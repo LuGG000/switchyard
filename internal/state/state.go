@@ -120,8 +120,24 @@ func (s *Store) Update(fn func(*State) error) error {
 	return writeFile(s.path, st)
 }
 
+// readAttempts and readRetryWait bound how long a read waits out a state file that
+// another process is replacing; reads take no lock, and on Windows and macOS the
+// file can be unreadable for a moment while the rename happens.
+const (
+	readAttempts  = 20
+	readRetryWait = 5 * time.Millisecond
+)
+
 func readFile(path string) (State, error) {
-	data, err := os.ReadFile(path)
+	var data []byte
+	var err error
+	for attempt := 0; attempt < readAttempts; attempt++ {
+		data, err = os.ReadFile(path)
+		if err == nil || errors.Is(err, fs.ErrNotExist) {
+			break
+		}
+		time.Sleep(readRetryWait)
+	}
 	if errors.Is(err, fs.ErrNotExist) {
 		return empty(), nil
 	}
