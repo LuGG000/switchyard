@@ -309,3 +309,12 @@ asks through buttons and keeps claude running meanwhile:
 - Headless runs have no statusLine, so the check happens when a run starts: a start profile over a threshold is
   replaced by one below, if one exists and the limits on automatic switches allow it (counted like any automatic switch).
 - Tested with unit tests for the selector, the hook, both runners and the config; not tried with real usage numbers.
+
+## `--dry-run`
+
+- `run --dry-run` and `switch --dry-run` print the plan (`printPlan`) and start nothing: the profile, interactive or
+  headless, the failover settings, the thresholds and limits, which profile would take over if this one hit its limit
+  now (`selector.Next` with the profile treated as cooling), the environment (the names of credential variables that
+  would be removed, never their values) and the exact claude command line with the injected `--settings`.
+- It writes nothing: no `markUsed`, no relinking, no `state.json`. It needs no `claude` in the PATH.
+- `switch --dry-run --no-launch` only says that the profile would become the active one.

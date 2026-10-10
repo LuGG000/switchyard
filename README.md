@@ -88,6 +88,8 @@ switchyard run --wait -- -p "prompt"   # the same, and wait for the first reset 
 switchyard switch work2 --resume      # switch and continue the current conversation
 switchyard switch work2 --fresh       # switch and start a new conversation
 switchyard switch work2 --no-launch   # only change the active profile
+switchyard run --dry-run -- -p "x"    # show the profile, settings, next profile and command line; start nothing
+switchyard switch work2 --dry-run     # the same for a switch
 switchyard handoff work2              # ask the running session to continue in work2
 switchyard decision                   # the limit that waits for the mod's buttons (used by the mod)
 switchyard config                     # failover settings
