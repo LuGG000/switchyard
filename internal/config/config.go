@@ -62,6 +62,8 @@ type Config struct {
 	MaxAutoSwitches int `toml:"max_auto_switches_per_day"`
 	// UpdateCheck lets status, list and doctor mention a newer release once a day.
 	UpdateCheck bool `toml:"update_check"`
+	// Notify shows a desktop notification when a session waits for a reset and when the wait is over.
+	Notify bool `toml:"notify"`
 	// The color settings style the mod's accounts pane; empty means the Claude theme's color.
 	ColorBackground   string `toml:"color_background"`
 	ColorText         string `toml:"color_text"`
@@ -83,6 +85,7 @@ func Default() Config {
 		Mode:              ModeAsk,
 		CarryContext:      true,
 		UpdateCheck:       true,
+		Notify:            true,
 		MinSwitchInterval: DefaultMinSwitchInterval,
 		MaxAutoSwitches:   DefaultMaxAutoSwitches,
 		Strategy:          StrategySequential,
@@ -226,10 +229,11 @@ const (
 	KeyMinSwitchInterval        = "min_switch_interval_minutes"
 	KeyMaxAutoSwitches          = "max_auto_switches_per_day"
 	KeyUpdateCheck              = "update_check"
+	KeyNotify                   = "notify"
 )
 
 // SettableKeys lists the settings Set can change, in display order.
-var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold, KeyProactiveThresholdWeekly, KeyMinSwitchInterval, KeyMaxAutoSwitches, KeyUpdateCheck}, ColorKeys...)
+var SettableKeys = append([]string{KeyMode, KeyCarryContext, KeyStrategy, KeyProactiveThreshold, KeyProactiveThresholdWeekly, KeyMinSwitchInterval, KeyMaxAutoSwitches, KeyUpdateCheck, KeyNotify}, ColorKeys...)
 
 // Set changes one setting in the config file at path and leaves the rest of the
 // file, comments included, as it is. The value is checked before anything is
@@ -276,14 +280,17 @@ func apply(cfg *Config, key, value string) (string, error) {
 	case KeyStrategy:
 		cfg.Strategy = value
 		return strconv.Quote(value), nil
-	case KeyCarryContext, KeyUpdateCheck:
+	case KeyCarryContext, KeyUpdateCheck, KeyNotify:
 		b, err := strconv.ParseBool(value)
 		if err != nil {
 			return "", fmt.Errorf("%s: %q is not true or false", key, value)
 		}
-		if key == KeyUpdateCheck {
+		switch key {
+		case KeyUpdateCheck:
 			cfg.UpdateCheck = b
-		} else {
+		case KeyNotify:
+			cfg.Notify = b
+		default:
 			cfg.CarryContext = b
 		}
 		return strconv.FormatBool(b), nil

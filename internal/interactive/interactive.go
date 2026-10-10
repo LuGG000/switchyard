@@ -68,6 +68,9 @@ type Runner struct {
 	ModWait time.Duration
 	// ModStale is how old the mod's last poll may be for it to count as present.
 	ModStale time.Duration
+	// Notify, if set and NotifyOn, shows a desktop notification with the given text.
+	Notify   func(text string)
+	NotifyOn bool
 	// History, if set, receives an entry for every switch.
 	History func(history.Entry)
 	// In and Out are the terminal used for questions and notices.
@@ -283,9 +286,11 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 		if r.Mode == config.ModeAuto {
 			if locked != nil {
 				r.printf("switchyard: every profile is at its limit; waiting until %s (Ctrl+C stops)\n", locked.EarliestReset.Local().Format("15:04"))
+				r.notify("Every profile is at its limit. Waiting until " + locked.EarliestReset.Local().Format("15:04") + ".")
 				if quit, err := r.waitUntil(ctx, locked.EarliestReset); quit || err != nil {
 					return nil, false, err
 				}
+				r.notify("The wait is over, continuing.")
 				continue
 			}
 			if auto, paused := r.automatic(); auto {
@@ -320,6 +325,7 @@ func (r *Runner) decide(ctx context.Context, current profiles.Profile, req state
 			if quit, err := r.waitUntil(ctx, until); quit || err != nil {
 				return nil, false, err
 			}
+			r.notify("The wait is over.")
 		default:
 			return nil, false, nil
 		}
@@ -470,6 +476,7 @@ func (r *Runner) reload() {
 	}
 	r.Mode, r.Strategy, r.CarryContext, r.ContinuePrompt = cfg.Mode, cfg.Strategy, cfg.CarryContext, cfg.ContinuePrompt
 	r.Limits = breaker.FromConfig(cfg)
+	r.NotifyOn = cfg.Notify
 	r.Thresholds = selector.ThresholdsFromConfig(cfg)
 }
 
@@ -479,4 +486,11 @@ func (r *Runner) record(from, to profiles.Profile, carry bool, req state.SwitchR
 		return
 	}
 	r.History(history.Entry{Time: r.Now().UTC(), From: from.Name, To: to.Name, Reason: req.Reason, How: r.how, Carry: carry})
+}
+
+// notify shows a desktop notification when they are on.
+func (r *Runner) notify(text string) {
+	if r.Notify != nil && r.NotifyOn {
+		r.Notify(text)
+	}
 }

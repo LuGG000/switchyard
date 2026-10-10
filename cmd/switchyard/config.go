@@ -24,6 +24,7 @@ type configReport struct {
 	MinSwitchInterval  int           `json:"min_switch_interval_minutes"`
 	MaxAutoSwitches    int           `json:"max_auto_switches_per_day"`
 	UpdateCheck        bool          `json:"update_check"`
+	Notify             bool          `json:"notify"`
 	Colors             config.Colors `json:"colors"`
 }
 
@@ -41,7 +42,8 @@ func newConfigCmd() *cobra.Command {
 			"  proactive_threshold_weekly  the same for the seven-day window, 0 = off\n" +
 			"  min_switch_interval_minutes  minutes between two automatic switches, 0 = off\n" +
 			"  max_auto_switches_per_day    most automatic switches in 24 hours, 0 = off\n" +
-			"  update_check         mention a newer release once a day (status, list, doctor)\n\n" +
+			"  update_check         mention a newer release once a day (status, list, doctor)\n" +
+			"  notify               desktop notification when a session waits for a reset and when the wait is over\n\n" +
 			"Change one with: switchyard config set <key> <value>. A running session picks the\n" +
 			"change up at its next limit.",
 		Args: cobra.NoArgs,
@@ -60,6 +62,7 @@ func newConfigCmd() *cobra.Command {
 				MinSwitchInterval:  cfg.MinSwitchInterval,
 				MaxAutoSwitches:    cfg.MaxAutoSwitches,
 				UpdateCheck:        cfg.UpdateCheck,
+				Notify:             cfg.Notify,
 				Colors:             cfg.Palette(),
 			}
 			if asJSON {

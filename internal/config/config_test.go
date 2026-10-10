@@ -324,3 +324,19 @@ func TestWeeklyThresholdIsSetAndRangeChecked(t *testing.T) {
 		t.Error("a negative weekly threshold was accepted")
 	}
 }
+
+func TestNotifyIsOnByDefaultAndCanBeTurnedOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if got, _ := Load(path); !got.Notify {
+		t.Fatal("notify is off by default")
+	}
+	if err := Set(path, KeyNotify, "false"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Load(path); got.Notify {
+		t.Error("notify is still on")
+	}
+	if err := Set(path, KeyNotify, "sometimes"); err == nil {
+		t.Error("a value that is no boolean was accepted")
+	}
+}

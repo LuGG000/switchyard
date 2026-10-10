@@ -585,3 +585,40 @@ func TestSwitchesAreWrittenToTheHistory(t *testing.T) {
 		}
 	})
 }
+
+func TestWaitingForAResetNotifiesWhenAsked(t *testing.T) {
+	for _, on := range []bool{true, false} {
+		t.Run(map[bool]string{true: "on", false: "off"}[on], func(t *testing.T) {
+			f := newFixture(t, "", "a-limited", "b")
+			err := f.store.Update(func(st *state.State) error {
+				st.Profiles["b"] = state.Profile{CooldownUntil: time.Now().Add(20 * time.Minute)}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			clock := time.Now()
+			f.runner.Now = func() time.Time { return clock }
+			f.runner.Wait = func(_ context.Context, until time.Time) error {
+				clock = until
+				return nil
+			}
+			var texts []string
+			f.runner.Notify = func(text string) { texts = append(texts, text) }
+			f.runner.NotifyOn = on
+
+			if code, err := f.run(t); err != nil || code != 0 {
+				t.Fatalf("Run = %d, %v", code, err)
+			}
+			if !on {
+				if len(texts) != 0 {
+					t.Errorf("notified although notify is off: %q", texts)
+				}
+				return
+			}
+			if len(texts) != 2 || !strings.Contains(texts[0], "Every profile is at its limit. Waiting until") || !strings.Contains(texts[1], "The wait is over") {
+				t.Errorf("notifications = %q, want one when the wait starts and one when it is over", texts)
+			}
+		})
+	}
+}

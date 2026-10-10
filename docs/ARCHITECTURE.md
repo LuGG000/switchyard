@@ -42,6 +42,7 @@ the hooks reach the launcher through the state file (see Decisions).
 | `strategy` | `sequential` | `sequential`, `most-headroom`, `round-robin` |
 | `continue_prompt` | empty | sent as the first message of a resumed session |
 | `update_check` | `true` | `status`, `list` and `doctor` mention a newer release (at most once a day, only on a terminal); `SWITCHYARD_NO_UPDATE_CHECK=1` also turns it off |
+| `notify` | `true` | desktop notification when a session waits for a reset and when the wait is over |
 | `proactive_threshold` | `0` | five-hour percentage that triggers a switch, 0 = off |
 | `proactive_threshold_weekly` | `0` | the same for the seven-day window, 0 = off |
 | `min_switch_interval_minutes` | `10` | minutes between two automatic switches, 0 = off |
@@ -337,3 +338,15 @@ asks through buttons and keeps claude running meanwhile:
   flicker. Windows consoles get escape sequence handling switched on for the run (`enableANSI`, restored at the end).
 - Without a terminal on stdout it prints one frame and ends. The frame is `writeWatch`, which the tests draw directly;
   the live loop and the Windows console mode are not covered by tests and were not seen in a real terminal by the agent.
+
+## Desktop notifications
+
+- `internal/notify` shows a notification with what the system has, no dependency: a toast through Windows PowerShell under
+  PowerShell's own application id, `notify-send` on Linux, `osascript` on macOS. The title and text are passed in the
+  environment (Windows, macOS) or after `--` (Linux), never inside a script, so quotes in them cannot break anything.
+- The interactive runner notifies when it starts waiting for the first reset ("Every profile is at its limit. Waiting until
+  14:00."), and when the wait is over. `notify = false` turns it off and applies at the next limit. Headless runs never
+  notify: they have no one at a screen and may run from a script.
+- Best effort: the command runs in the background and a system without the tool simply shows nothing.
+- Verified: the command construction on all three systems (unit tests) and a real toast call on Windows (the call
+  succeeds; seeing it needs `SWITCHYARD_NOTIFY_REAL=1 go test ./internal/notify -run Real -v`). Not tried on Linux and macOS.
