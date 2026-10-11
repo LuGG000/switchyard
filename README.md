@@ -137,6 +137,13 @@ A prompt on its own (`claude "fix the bug"`) looks like a subcommand and goes to
 without failover; use `switchyard run -- "fix the bug"` for that. Tested in bash and PowerShell;
 zsh and fish use the same logic but have not been run.
 
+To go back to a plain `claude`, delete that line from the startup file (PowerShell: `notepad $PROFILE`;
+bash `~/.bashrc`; zsh `~/.zshrc`; fish `~/.config/fish/config.fish`) and open a new terminal. For the
+current terminal only, bash and zsh: `unset -f claude`; fish: `functions -e claude`; PowerShell:
+`Remove-Item Function:\claude`. To run the real claude once without removing anything, use
+`command claude` (bash, zsh, fish) or, in PowerShell,
+`& (Get-Command claude -CommandType Application | Select-Object -First 1).Source`.
+
 ### Exit codes
 
 For scripts: `run` returns claude's own exit code. `75` means every profile is at its limit (the

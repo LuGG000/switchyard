@@ -74,7 +74,9 @@ switchyard run
 ```
 
 Options for claude go after `--` (`switchyard run -- --model opus`). To make a plain `claude` do this, add
-the function from `switchyard shell-init <bash|zsh|fish|powershell>` to your shell startup file (see the README).
+the function from `switchyard shell-init <bash|zsh|fish|powershell>` to your shell startup file. The line
+for each shell is in the README under "Start it every time"; in PowerShell it is
+`switchyard shell-init powershell | Out-String | Invoke-Expression` in `$PROFILE`.
 
 ## 6. Decide what happens at a limit
 
@@ -112,7 +114,10 @@ session is not interrupted. The mod is updated with `claude plugin update switch
 
 1. Remove every profile: `switchyard remove <name>` (a profile made with `--existing` loses only its link).
 2. Remove the mod: `claude plugin uninstall switchyard-mod@switchyard`.
-3. Remove the `switchyard shell-init` line from your shell startup file, if you added it.
+3. Remove the `switchyard shell-init` line from your shell startup file, if you added it (PowerShell:
+   `notepad $PROFILE`; bash `~/.bashrc`; zsh `~/.zshrc`; fish `~/.config/fish/config.fish`), then open a
+   new terminal. The README section "Start it every time" also shows how to turn it off for one
+   terminal or one start.
 4. Delete the `switchyard` binary.
 5. On Windows, if a desktop notification was ever shown: `Remove-Item HKCU:\Software\Classes\AppUserModelId\switchyard` (the name switchyard registered for its notifications).
 6. Delete the profile folder (`%LocalAppData%\switchyard` on Windows, `~/.local/share/switchyard` on
