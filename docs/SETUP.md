@@ -105,7 +105,14 @@ buttons while claude keeps running (mode `ask`), the failover settings and the c
 The mod only shows and controls things; failover works without it, but only for claude started through
 `switchyard run`.
 
-## 8. Updates
+## 8. Optional: VS Code
+
+To use the profiles in the Claude Code extension for VS Code, set **Claude Code: Claude Process Wrapper** in the
+VS Code user settings to the path of the switchyard executable (`where switchyard` or `which switchyard`) and
+reload the window. Conversations then run in the active profile and move to the next one at a limit; see the
+README section "VS Code". The Claude desktop app cannot be used with switchyard.
+
+## 9. Updates
 
 `switchyard update` checks for a newer release and `switchyard update --install` installs it; a running claude
 session is not interrupted. The mod is updated with `claude plugin update switchyard-mod@switchyard`.
@@ -118,7 +125,7 @@ session is not interrupted. The mod is updated with `claude plugin update switch
    `notepad $PROFILE`; bash `~/.bashrc`; zsh `~/.zshrc`; fish `~/.config/fish/config.fish`), then open a
    new terminal. The README section "Start it every time" also shows how to turn it off for one
    terminal or one start.
-4. Delete the `switchyard` binary.
+4. In VS Code, clear the Claude Process Wrapper setting if you set it. Then delete the `switchyard` binary.
 5. On Windows, if a desktop notification was ever shown: `Remove-Item HKCU:\Software\Classes\AppUserModelId\switchyard` (the name switchyard registered for its notifications).
 6. Delete the profile folder (`%LocalAppData%\switchyard` on Windows, `~/.local/share/switchyard` on
    Linux and macOS) and the config folder from step 2.

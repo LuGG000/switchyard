@@ -26,7 +26,7 @@ for `main`.
 
 - Unit tests use temp dirs and `SWITCHYARD_DATA_DIR` / `SWITCHYARD_CONFIG_DIR`.
 - `fakeclaude/` is a small Go program standing in for `claude`. Behavior is set
-  by environment variables (`FAKE_EXIT`, `FAKE_LOGGED_IN`, `FAKE_AUTH`, `FAKE_LIMIT_DIR` and `FAKE_THRESHOLD_DIR` for a simulated limit or threshold); a normal
+  by environment variables (`FAKE_EXIT`, `FAKE_LOGGED_IN`, `FAKE_AUTH`, `FAKE_LIMIT_DIR` and `FAKE_THRESHOLD_DIR` for a simulated limit or threshold); with `--input-format stream-json` it answers like claude does for an SDK client; a normal
   run prints a JSON report of the arguments, config dir and which credential
   variables reached it. `internal/launcher` tests build it with `go build`.
   Some packages instead re-execute the test binary as a minimal fake claude

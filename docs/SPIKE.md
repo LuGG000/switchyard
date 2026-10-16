@@ -209,3 +209,19 @@ not driven by hand.
 - Plugins installed under `~/.claude` are left to the CLI's own loader (`4 ~/.claude plugin(s) left to the CLI's own
   loader`), so the mod is loaded in app sessions. Whether its pane renders there was not checked.
 - Result: switchyard cannot pick the login, record usage or switch in the app; the README says "Terminal only".
+
+## SDK stream-json protocol (Windows, claude 2.1.301, VS Code extension 2.1.289)
+
+What the VS Code wrapper (`internal/sdkproxy`) relies on, checked with the real claude and `--model haiku` from an
+empty temp directory, by writing the SDK's messages by hand:
+
+- The extension starts `claudeCode.claudeProcessWrapper` as `<wrapper> <bundled claude.exe> --output-format
+  stream-json --verbose --input-format stream-json …` (read from its `extension.js`); the setting has machine scope.
+- An `initialize` control request is answered with a `control_response` carrying the same `request_id`, then a turn
+  emits `system`/`init`, `assistant`, `rate_limit_event` (with `unifiedWindows`, here `status: allowed_warning` at
+  86 % of the week) and `result`; claude keeps running for the next message.
+- A second process with `--resume <session>` accepts the same `initialize` again, keeps the session ID and knows the
+  earlier turn (a remembered word came back). stream-json input counts as print mode: `--resume` there needs a
+  session ID or title.
+- Through `switchyard <claude.exe> <SDK arguments>` the same exchange works unchanged and the usage lands in
+  `state.json`. Not checked yet: the extension itself with the wrapper set, and a real limit in this mode (#1).

@@ -126,26 +126,21 @@ status. Afterwards remove the test conversations and clear any leftover cooldown
 
 ## 4. The Claude Code extension for VS Code (issue #29)
 
-switchyard has no launcher inside the extension, so there is no failover there; the question is whether
-the extension can at least use a profile's login. What is known without running it: the extension has the
-settings `claudeCode.environmentVariables` (variables set when it launches claude) and
-`claudeCode.claudeProcessWrapper` (an executable that launches the claude process). Nothing below is
-verified yet.
+switchyard runs as the extension's process wrapper (README "VS Code"). Use two profiles, ideally logged in
+to different accounts so a difference is visible.
 
-1. In the workspace settings (`.vscode/settings.json`) of an empty test folder, set
-   `"claudeCode.environmentVariables": [{ "name": "CLAUDE_CONFIG_DIR", "value": "<data dir>/profiles/second" }]`
-   (use a profile that is logged in with another account than the one the extension uses by default, so a
-   difference is visible).
-2. Reload the window, open the Claude Code panel and send one short prompt ("say ok", haiku).
-3. Check which account answered: `switchyard status` shows the usage of the profile (the status line only
-   updates for sessions started through switchyard, so compare the usage on claude.ai or `/status` in the panel),
-   and a new `.jsonl` appears under `<data dir>/profiles/second/projects/`, not under `~/.claude/projects/`.
-4. Remove the setting again and note whether the panel kept the profile's login or asked to log in.
+1. In the VS Code user settings set `"claudeCode.claudeProcessWrapper"` to the path of `switchyard.exe`
+   (`where switchyard`) and reload the window.
+2. Open the Claude Code panel in an empty test folder and send one short prompt ("say ok", haiku). It must
+   answer as before; `switchyard status` now shows fresh usage for the active profile.
+3. The switch needs a real limit, which cannot be simulated inside VS Code (#1); `go test ./internal/sdkproxy`
+   covers it with a simulated one. At a real limit, after asking it to remember a word: the panel shows the
+   limit message, a notification names the profile that takes over, sending again answers from the other
+   account and still knows the word, and `switchyard history` lists the switch.
+4. Remove the setting and reload: the panel works with its own login again.
 
-Write down: whether the variable was honored, where sessions were stored, and whether the panel shows
-which account is in use. If it works, the README can say that a profile can be used in VS Code by that
-setting, and that failover does not apply there. Whether `claudeProcessWrapper` could point at
-`switchyard run` (the extension talks to claude over stream-json) is a second experiment.
+Write down: whether the panel answered through switchyard (fresh usage in `switchyard status`), anything
+odd in the panel, and the extension version.
 
 ## Cleaning up
 

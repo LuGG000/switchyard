@@ -9,7 +9,8 @@
 //	FAKE_LIMIT_DIR  if set and the config dir contains this text, the run hits a
 //	                simulated rate limit. Headless (-p): prints the limit signal and
 //	                exits 1. Interactive: calls the StopFailure hook from --settings
-//	                and waits to be ended by the launcher
+//	                and waits to be ended by the launcher. SDK client (--input-format
+//	                stream-json): every turn ends at the limit and claude keeps running
 //	FAKE_FIVE_HOUR  utilization (0 to 1) a stream-json run reports for the five-hour window
 //	FAKE_THRESHOLD_DIR  like FAKE_LIMIT_DIR, but an interactive run reports 96%
 //	                of the five-hour window to the statusLine command and waits
@@ -52,6 +53,9 @@ func main() {
 	case "auth login":
 		fmt.Println("fakeclaude: login in", os.Getenv("CLAUDE_CONFIG_DIR"))
 		return
+	}
+	if slices.Contains(args, "--input-format") && slices.Contains(args, "stream-json") {
+		os.Exit(sdkSession(args))
 	}
 	headless := slices.Contains(args, "-p") || slices.Contains(args, "--print")
 	switch {
