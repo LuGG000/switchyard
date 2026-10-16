@@ -1,6 +1,6 @@
 # Maintainer: LuGG000 <81622672+LuGG000@users.noreply.github.com>
 pkgname=switchyard-bin
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc='Account switcher with limit failover for Claude Code subscription logins (prebuilt binary)'
 arch=('x86_64' 'aarch64')
@@ -10,8 +10,8 @@ provides=('switchyard')
 conflicts=('switchyard')
 source_x86_64=("$url/releases/download/v$pkgver/switchyard_${pkgver}_linux_amd64.tar.gz")
 source_aarch64=("$url/releases/download/v$pkgver/switchyard_${pkgver}_linux_arm64.tar.gz")
-sha256sums_x86_64=('4fb6d09f78b4047513fce1155f01cd36b2dbbf3363ac4fd0db6bc26ef30184f6')
-sha256sums_aarch64=('fe50631bbc8b5e542892b4cde57f5363bf0eeace5ac6814ca23512263958fdb8')
+sha256sums_x86_64=('3ba9a6adcd341efd7087b8bcc0649ab295e53c7649af66927c6ec2281269c592')
+sha256sums_aarch64=('15718281b7125ccb67d0344460b5eca71c02ecd92be77f4911636c2c1bf7b7a6')
 
 package() {
   install -Dm755 switchyard "$pkgdir/usr/bin/switchyard"

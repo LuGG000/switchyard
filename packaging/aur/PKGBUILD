@@ -1,6 +1,6 @@
 # Maintainer: LuGG000 <81622672+LuGG000@users.noreply.github.com>
 pkgname=switchyard
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc='Account switcher with limit failover for Claude Code subscription logins'
 arch=('x86_64' 'aarch64')
@@ -9,7 +9,7 @@ license=('Apache-2.0')
 makedepends=('go')
 options=('!lto')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('4c67253c4878bbdff3b5c3ee1fc3e9cc0103263c1bf093b15858d82311ee8b7f')
+sha256sums=('15098bd1e5db68249a471eb641561e17cd9d83d4a957a372920ad49437569dc5')
 
 build() {
   cd "$pkgname-$pkgver"
