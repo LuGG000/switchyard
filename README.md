@@ -249,6 +249,17 @@ and may change between releases.
 Subscription logins only (`authMethod: claude.ai`). API-key, Console, Bedrock,
 Vertex and Foundry accounts are explicitly out of scope.
 
+### Terminal only
+
+switchyard works with the `claude` command in a terminal (or a script): it starts `claude` itself, and that is
+how it picks the login, records the usage and restarts in another account at a limit.
+
+- **Claude desktop app:** not supported. The app starts its own bundled Claude Code and signs it in with the
+  account the app is logged in to; there is no setting to run it through switchyard. Profiles, usage tracking and
+  failover do not apply there.
+- **Claude Code in VS Code or JetBrains:** not tested. There is no failover there either, since switchyard does
+  not start the session ([#29](https://github.com/LuGG000/switchyard/issues/29)).
+
 ### What is verified where
 
 "By hand" means tried with the real `claude`; "CI" means built and tested there, with `claude` simulated.

@@ -355,3 +355,13 @@ asks through buttons and keeps claude running meanwhile:
 - Best effort: the command runs in the background and a system without the tool simply shows nothing.
 - Verified: the command construction on all three systems (unit tests) and a real toast call on Windows (the call
   succeeds; seeing it needs `SWITCHYARD_NOTIFY_REAL=1 go test ./internal/notify -run Real -v`, in PowerShell `$env:SWITCHYARD_NOTIFY_REAL = "1"; go test ./internal/notify -run Real -v`). Not tried on Linux and macOS.
+
+## Desktop app and IDE extensions
+
+- switchyard works only where it starts `claude` itself (terminal, scripts). The README says so under "Terminal only".
+- The Claude desktop app (checked on Windows, app 2.42304, Claude Code 2.1.299, from its log and config) starts its
+  own bundled `claude.exe`, pinned by version and hash, and passes the token of the app's account. It has no setting
+  for another executable, environment or `--settings`. Replacing its binary or removing its token would mean
+  changing the app and handling credentials, so the app is not supported. The mod is loaded there (the app leaves
+  `~/.claude` plugins to the CLI), but a handoff has no launcher to act on it.
+- VS Code: `claudeCode.environmentVariables` and `claudeCode.claudeProcessWrapper` exist; neither is tested (#29).
