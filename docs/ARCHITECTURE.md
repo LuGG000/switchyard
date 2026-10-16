@@ -16,6 +16,7 @@ This file describes what exists in the code and the decisions taken while buildi
 | `internal/selector` | picks the next profile (sequential, most-headroom, round-robin), honors cooldowns |
 | `internal/detector` | recognizes a rate limit in headless output (`stream-json` events, error result, plain text) |
 | `internal/headless` | `claude -p` failover loop: detect limit, cooldown, next profile, resume |
+| `internal/sdkproxy` | stream-json proxy for an SDK client (the VS Code extension): pass messages through, restart in the next profile at a limit |
 | `internal/interactive` | interactive failover loop: poll for a switch request, end claude, ask or switch, relaunch with resume |
 | `internal/hooks` | statusLine and StopFailure hook handlers, builds the `--settings` JSON |
 | `internal/doctor` | read-only health checks |
@@ -359,10 +360,32 @@ asks through buttons and keeps claude running meanwhile:
 
 ## Desktop app and IDE extensions
 
-- switchyard works only where it starts `claude` itself (terminal, scripts). The README says so under "Terminal only".
+- switchyard works only where it starts `claude` itself: terminal, scripts and the VS Code extension's process
+  wrapper. The README says so under "Terminal and VS Code".
 - The Claude desktop app (checked on Windows, app 2.42304, Claude Code 2.1.299, from its log and config) starts its
   own bundled `claude.exe`, pinned by version and hash, and passes the token of the app's account. It has no setting
   for another executable, environment or `--settings`. Replacing its binary or removing its token would mean
   changing the app and handling credentials, so the app is not supported. The mod is loaded there (the app leaves
   `~/.claude` plugins to the CLI), but a handoff has no launcher to act on it.
-- VS Code: `claudeCode.environmentVariables` and `claudeCode.claudeProcessWrapper` exist; neither is tested (#29).
+- VS Code (#29): the extension's `claudeCode.claudeProcessWrapper` (machine scope) names an executable that it
+  starts as `<wrapper> <its bundled claude> <SDK arguments>`, or with the arguments alone when it has no bundled
+  claude. `main` recognizes that call before cobra (`wrapperInvocation`: an absolute path named `claude` or
+  `claude.exe` first, or `--output-format` first), so no subcommand is needed in the setting.
+- A call with `--input-format stream-json` goes through `internal/sdkproxy`; any other call (the extension also
+  runs claude for small jobs) just runs in the active profile. Without profiles claude runs unchanged.
+- The proxy passes every line through. It never injects `--settings`: the SDK may pass its own, and the
+  stream carries everything needed. It records usage from each `rate_limit_event` at the end of a turn, like
+  headless. A turn is limited when its `result` has `is_error` and the detector saw a limit signal in the turn,
+  the stream-json counterpart of "non-zero exit" (claude keeps running between turns).
+- At a limited turn the output goroutine stops before passing the `result` on and waits until the main loop has
+  stopped forwarding the client's input, so a new message cannot reach the old claude. If a switch is possible
+  and allowed (cooldown, selector, breaker; automatic whatever `mode` says, since nobody can be asked), claude is
+  ended and started in the next profile with `--resume <session>` (`--fork-session`, `--resume-session-at`,
+  `--resume-drops-turn` and `--session-id` dropped). The limited `result` still reaches the client, so the user
+  sees the limit and sends again; resending it automatically was left out because how the extension takes an
+  unrequested turn is unknown.
+- The restarted claude gets the client's `initialize` and setting requests again (`set_model`,
+  `set_permission_mode`, `set_max_thinking_tokens`, the MCP ones); its answers to those request IDs are dropped.
+  Checked with the real claude 2.1.301: a second `initialize` after `--resume` is accepted and the session ID
+  stays the same.
+- `claudeCode.environmentVariables` is not used: `CLAUDE_CONFIG_DIR` set there is replaced by the profile's.

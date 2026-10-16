@@ -235,6 +235,26 @@ switchyard mod install
 See [mod/README.md](mod/README.md). The mod API of Claude Code is in early access
 and may change between releases.
 
+## VS Code
+
+The Claude Code extension for VS Code can run claude through switchyard. In the VS Code user settings
+(the setting is per machine, so not in a workspace), point **Claude Code: Claude Process Wrapper** at the
+switchyard executable:
+
+```json
+"claudeCode.claudeProcessWrapper": "C:\\path\\to\\switchyard.exe"
+```
+
+`where switchyard` (Windows) or `which switchyard` shows the path. Then reload the window.
+
+- Conversations run in the active profile, with its login, and its usage shows up in `switchyard status`.
+- At a limit the conversation moves to the next profile by itself and stays open in VS Code: the limit message is
+  shown, send your message again and the next account answers. There is no one to ask in VS Code, so this is
+  automatic whatever `mode` says, within the limits on automatic switches; `notify` shows a desktop notification.
+- The conversation always goes along (`carry_context` does not apply), and the proactive thresholds do not
+  start a switch. The mod and the status line are not shown in VS Code.
+- Without profiles switchyard runs claude unchanged; remove the setting to stop using switchyard.
+
 ## Documentation
 
 - [docs/SETUP.md](docs/SETUP.md): the full setup guide, from install to removal
@@ -249,16 +269,16 @@ and may change between releases.
 Subscription logins only (`authMethod: claude.ai`). API-key, Console, Bedrock,
 Vertex and Foundry accounts are explicitly out of scope.
 
-### Terminal only
+### Terminal and VS Code
 
-switchyard works with the `claude` command in a terminal (or a script): it starts `claude` itself, and that is
-how it picks the login, records the usage and restarts in another account at a limit.
+switchyard works where it starts `claude` itself: in a terminal, in a script, and in VS Code through the
+extension's process wrapper setting (see [VS Code](#vs-code)). That is how it picks the login, records the usage
+and restarts in another account at a limit.
 
 - **Claude desktop app:** not supported. The app starts its own bundled Claude Code and signs it in with the
   account the app is logged in to; there is no setting to run it through switchyard. Profiles, usage tracking and
   failover do not apply there.
-- **Claude Code in VS Code or JetBrains:** not tested. There is no failover there either, since switchyard does
-  not start the session ([#29](https://github.com/LuGG000/switchyard/issues/29)).
+- **JetBrains:** not tested.
 
 ### What is verified where
 
@@ -274,6 +294,7 @@ every limit test uses a simulated limit.
 | Failover, interactive (ending `claude`) | by hand, simulated limit | CI; ending `claude` not verified ([#2](https://github.com/LuGG000/switchyard/issues/2)) | CI | not verified ([#3](https://github.com/LuGG000/switchyard/issues/3)) |
 | statusLine and usage tracking | by hand | by hand (TUI) | CI | not verified |
 | Mod (`/switchyard` pane and buttons) | by hand | not verified | not verified | not verified |
+| VS Code wrapper | by hand with claude's SDK protocol, not yet inside VS Code; failover with a simulated limit | CI | CI | not verified |
 | `update --install` | by hand | CI; replacing the binary not verified | CI; replacing the binary not verified | not verified |
 | `shell-init` | by hand (bash, PowerShell) | CI; zsh and fish not tried by hand | CI | not verified |
 

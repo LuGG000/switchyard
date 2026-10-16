@@ -62,7 +62,12 @@ func exitCodeFor(err error) (int, string) {
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	err := newRootCmd().ExecuteContext(ctx)
+	var err error
+	if claude, args, ok := wrapperInvocation(os.Args[1:]); ok {
+		err = runWrapper(ctx, claude, args)
+	} else {
+		err = newRootCmd().ExecuteContext(ctx)
+	}
 	stop()
 	code, message := exitCodeFor(err)
 	if message != "" {

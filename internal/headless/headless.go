@@ -125,19 +125,24 @@ func (r *Runner) Run(ctx context.Context, start profiles.Profile, args []string)
 
 // recordUsage stores the rate limit windows the output reported for p.
 func (r *Runner) recordUsage(p profiles.Profile, result detector.Result) error {
+	return RecordUsage(r.Store, p.Name, result, r.Now())
+}
+
+// RecordUsage stores the rate limit windows a stream-json output reported for the named profile.
+func RecordUsage(store *state.Store, name string, result detector.Result, now time.Time) error {
 	if result.FiveHour == nil && result.SevenDay == nil {
 		return nil
 	}
-	now := r.Now().UTC()
-	return r.Store.Update(func(st *state.State) error {
-		entry := st.Profiles[p.Name]
+	now = now.UTC()
+	return store.Update(func(st *state.State) error {
+		entry := st.Profiles[name]
 		if w := result.FiveHour; w != nil {
 			entry.FiveHour = &state.Usage{UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt, UpdatedAt: now}
 		}
 		if w := result.SevenDay; w != nil {
 			entry.SevenDay = &state.Usage{UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt, UpdatedAt: now}
 		}
-		st.Profiles[p.Name] = entry
+		st.Profiles[name] = entry
 		return nil
 	})
 }
