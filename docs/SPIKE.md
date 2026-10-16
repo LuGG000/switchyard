@@ -194,3 +194,18 @@ TUI was running; no real limit was hit.
   heartbeat is written every two seconds.
 - Without a click the terminal asked after the two minutes and answering `y` continued in the other profile with the conversation (verified by hand).
 - **New conversation** started the other profile empty: the remembered word was not known there (verified by hand).
+
+## Claude desktop app (Windows, app 2.42304 from the Microsoft Store, Claude Code 2.1.299)
+
+Read from the app's own log (`%LOCALAPPDATA%\Claude\logs\main.log`) and the key names of its config files; the app was
+not driven by hand.
+
+- Each Code session runs the app's bundled binary (`Using Claude Code binary at: …\Claude\claude-code\2.1.299\…\claude.exe`),
+  pinned as `required_version:<version>:<hash>`, not the `claude` on `PATH`.
+- At the spawn the app looks up the OAuth token of the account it is signed in to (`[oauth-v2] … user:inference`), so
+  the session uses the app's login, whatever is in a config dir.
+- `claude_desktop_config.json` and `config.json` have no key for another executable, environment variables or
+  `--settings`.
+- Plugins installed under `~/.claude` are left to the CLI's own loader (`4 ~/.claude plugin(s) left to the CLI's own
+  loader`), so the mod is loaded in app sessions. Whether its pane renders there was not checked.
+- Result: switchyard cannot pick the login, record usage or switch in the app; the README says "Terminal only".
