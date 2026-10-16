@@ -45,7 +45,8 @@ func newWatchCmd() *cobra.Command {
 				return err
 			}
 			frame := func(live bool) (string, error) {
-				report, err := buildStatus(m, store)
+				now := time.Now()
+				report, err := buildStatus(m, store, now)
 				if err != nil {
 					return "", err
 				}
@@ -62,7 +63,7 @@ func newWatchCmd() *cobra.Command {
 					return "", err
 				}
 				var buf bytes.Buffer
-				err = writeWatch(&buf, live, report, st, cfg, entries, time.Now())
+				err = writeWatch(&buf, live, report, st, cfg, entries, now)
 				return buf.String(), err
 			}
 

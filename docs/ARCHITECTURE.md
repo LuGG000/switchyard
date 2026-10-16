@@ -64,7 +64,8 @@ version; a file with a newer version is rejected.
 
 `{"schema":1,"version":"…","active":"…","profiles":[{"name","active","last_used","cooldown_until","five_hour","seven_day"}]}`.
 It reads only the state file and never starts `claude`, so the mod can poll it.
-`five_hour`/`seven_day` are `null` or `{used_percent, resets_at, updated_at}`.
+`five_hour`/`seven_day` are `null` or `{used_percent, resets_at, updated_at}`. A window whose `resets_at` has
+passed is `null`: its percentage belongs to a window that is over (`status` shows `-`, `--short` leaves it out).
 Consumers must check `schema` first.
 
 ## Decisions

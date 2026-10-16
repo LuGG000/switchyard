@@ -57,7 +57,7 @@ func newStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			report, err := buildStatus(m, store)
+			report, err := buildStatus(m, store, time.Now())
 			if err != nil {
 				return err
 			}
@@ -81,7 +81,7 @@ func newStatusCmd() *cobra.Command {
 	return cmd
 }
 
-func buildStatus(m *profiles.Manager, store *state.Store) (statusReport, error) {
+func buildStatus(m *profiles.Manager, store *state.Store, now time.Time) (statusReport, error) {
 	list, err := m.List()
 	if err != nil {
 		return statusReport{}, err
@@ -98,15 +98,17 @@ func buildStatus(m *profiles.Manager, store *state.Store) (statusReport, error) 
 			Active:        p.Name == st.Active,
 			LastUsed:      optionalTime(entry.LastUsed),
 			CooldownUntil: optionalTime(entry.CooldownUntil),
-			FiveHour:      usageOf(entry.FiveHour),
-			SevenDay:      usageOf(entry.SevenDay),
+			FiveHour:      usageOf(entry.FiveHour, now),
+			SevenDay:      usageOf(entry.SevenDay, now),
 		})
 	}
 	return report, nil
 }
 
-func usageOf(u *state.Usage) *usageInfo {
-	if u == nil {
+// usageOf reports a stored window; nil when there is none or it has reset since, because the stored
+// percentage then no longer says anything about the current window.
+func usageOf(u *state.Usage, now time.Time) *usageInfo {
+	if u == nil || (!u.ResetsAt.IsZero() && !u.ResetsAt.After(now)) {
 		return nil
 	}
 	return &usageInfo{UsedPercent: u.UsedPercent, ResetsAt: u.ResetsAt, UpdatedAt: u.UpdatedAt}

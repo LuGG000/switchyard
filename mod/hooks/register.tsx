@@ -256,7 +256,7 @@ export const register: Register = on => {
       </Box>
     )
     const usageRow = (label: string, usage: Usage | null) =>
-      usage ? bar(label, usage.used_percent, resetLabel(usage.resets_at, now)) : <Box key={label}>{dim(`${label} no data yet`)}</Box>
+      usage ? bar(label, usage.used_percent, resetLabel(usage.resets_at, now)) : <Box key={label}>{dim(`${label} no current data`)}</Box>
 
     if (shown === 'style') {
       const choice = (name: string) => (

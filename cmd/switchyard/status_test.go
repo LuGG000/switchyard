@@ -23,14 +23,14 @@ func TestBuildStatus(t *testing.T) {
 	used := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
 	err := store.Update(func(st *state.State) error {
 		st.Active = "b"
-		st.Profiles["b"] = state.Profile{LastUsed: used, FiveHour: &state.Usage{UsedPercent: 63, ResetsAt: used}}
+		st.Profiles["b"] = state.Profile{LastUsed: used, FiveHour: &state.Usage{UsedPercent: 63, ResetsAt: used.Add(time.Hour)}}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	report, err := buildStatus(m, store)
+	report, err := buildStatus(m, store, used)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,8 +61,39 @@ func TestBuildStatus(t *testing.T) {
 	}
 }
 
+func TestBuildStatusHidesWindowsThatHaveReset(t *testing.T) {
+	m := &profiles.Manager{Root: t.TempDir()}
+	if _, err := m.Create("a"); err != nil {
+		t.Fatal(err)
+	}
+	store := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	now := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)
+	err := store.Update(func(st *state.State) error {
+		st.Profiles["a"] = state.Profile{
+			FiveHour: &state.Usage{UsedPercent: 5, ResetsAt: now},
+			SevenDay: &state.Usage{UsedPercent: 27, ResetsAt: now.Add(time.Hour)},
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := buildStatus(m, store, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := report.Profiles[0]
+	if a.FiveHour != nil {
+		t.Errorf("five-hour window reset at %v, still reported: %+v", now, a.FiveHour)
+	}
+	if a.SevenDay == nil || a.SevenDay.UsedPercent != 27 {
+		t.Errorf("seven-day window has not reset, got %+v", a.SevenDay)
+	}
+}
+
 func TestBuildStatusWithoutProfilesIsEmptyList(t *testing.T) {
-	report, err := buildStatus(&profiles.Manager{Root: t.TempDir()}, state.NewStore(filepath.Join(t.TempDir(), "s.json")))
+	report, err := buildStatus(&profiles.Manager{Root: t.TempDir()}, state.NewStore(filepath.Join(t.TempDir(), "s.json")), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
